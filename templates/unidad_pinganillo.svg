@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 95">
+  <!-- Receptor body -->
+  <rect x="12" y="4" width="36" height="62" rx="5" fill="white" stroke="black" stroke-width="1.5"/>
+  <!-- Display LCD -->
+  <rect x="17" y="10" width="26" height="16" rx="2" fill="none" stroke="black" stroke-width="1"/>
+  <text x="30" y="18" text-anchor="middle" font-size="5.5" font-family="Arial Narrow,monospace" fill="black">-14dB</text>
+  <text x="30" y="24" text-anchor="middle" font-size="4.5" font-family="Arial Narrow,monospace" fill="black">CH 12</text>
+  <!-- Botón VOL - -->
+  <rect x="17" y="32" width="10" height="8" rx="2" fill="none" stroke="black" stroke-width="1"/>
+  <text x="22" y="38" text-anchor="middle" font-size="9" font-family="Arial,sans-serif" fill="black">−</text>
+  <!-- Botón VOL + -->
+  <rect x="33" y="32" width="10" height="8" rx="2" fill="none" stroke="black" stroke-width="1"/>
+  <text x="38" y="38" text-anchor="middle" font-size="8" font-family="Arial,sans-serif" fill="black">+</text>
+  <!-- Botón canal -->
+  <circle cx="30" cy="54" r="6" fill="none" stroke="black" stroke-width="1.2"/>
+  <text x="30" y="57" text-anchor="middle" font-size="4.5" font-family="Arial,sans-serif" fill="black">CH</text>
+  <!-- Clip -->
+  <rect x="48" y="14" width="5" height="30" rx="2" fill="none" stroke="black" stroke-width="1"/>
+  <!-- Conector jack -->
+  <rect x="26" y="66" width="8" height="5" rx="2" fill="none" stroke="black" stroke-width="1"/>
+  <!-- Cable y auricular IEM -->
+  <path d="M30 71 Q30 78 20 82 Q13 84 13 80 Q13 76 19 76" fill="none" stroke="black" stroke-width="1.2"/>
+  <!-- Earpiece -->
+  <ellipse cx="16" cy="78" rx="7" ry="5" fill="white" stroke="black" stroke-width="1.2"/>
+  <ellipse cx="16" cy="78" rx="3.5" ry="2.5" fill="none" stroke="black" stroke-width="0.8"/>
+  <text x="30" y="92" text-anchor="middle" font-size="6.5" font-family="Arial,sans-serif" fill="black">IEM Receptor</text>
+</svg>

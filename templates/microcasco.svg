@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 110 90">
+  <!-- Diadema arco -->
+  <path d="M18 45 Q18 8 55 8 Q92 8 92 45" fill="none" stroke="black" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Almohadilla izquierda - exterior -->
+  <ellipse cx="16" cy="50" rx="12" ry="15" fill="white" stroke="black" stroke-width="1.5"/>
+  <!-- Almohadilla izquierda - driver -->
+  <ellipse cx="16" cy="50" rx="7" ry="10" fill="none" stroke="black" stroke-width="1"/>
+  <!-- Almohadilla derecha - exterior -->
+  <ellipse cx="94" cy="50" rx="12" ry="15" fill="white" stroke="black" stroke-width="1.5"/>
+  <!-- Almohadilla derecha - driver -->
+  <ellipse cx="94" cy="50" rx="7" ry="10" fill="none" stroke="black" stroke-width="1"/>
+  <!-- Brazo del micro (boom) -->
+  <path d="M8 58 Q2 70 8 78" fill="none" stroke="black" stroke-width="2" stroke-linecap="round"/>
+  <!-- Articulación brazo -->
+  <circle cx="8" cy="58" r="2.5" fill="white" stroke="black" stroke-width="1"/>
+  <!-- Cápsula del micro -->
+  <ellipse cx="10" cy="80" rx="7" ry="5" fill="white" stroke="black" stroke-width="1.5"/>
+  <!-- Grille micro -->
+  <ellipse cx="10" cy="80" rx="4" ry="3" fill="none" stroke="black" stroke-width="1"/>
+  <!-- Cable de salida -->
+  <path d="M94 65 Q102 68 104 60" fill="none" stroke="black" stroke-width="1.5" stroke-linecap="round"/>
+  <circle cx="104" cy="58" r="3" fill="white" stroke="black" stroke-width="1"/>
+  <text x="55" y="88" text-anchor="middle" font-size="7" font-family="Arial,sans-serif" fill="black">Microcasco</text>
+</svg>

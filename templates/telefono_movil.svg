@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 85">
+  <!-- Cuerpo -->
+  <rect x="7" y="4" width="36" height="64" rx="6" fill="white" stroke="black" stroke-width="1.5"/>
+  <!-- Pantalla -->
+  <rect x="11" y="10" width="28" height="46" rx="3" fill="none" stroke="black" stroke-width="1"/>
+  <!-- Cámara frontal -->
+  <circle cx="25" cy="13" r="2" fill="none" stroke="black" stroke-width="1"/>
+  <!-- Bocina superior -->
+  <rect x="20" y="7" width="10" height="2" rx="1" fill="none" stroke="black" stroke-width="0.8"/>
+  <!-- Onda de audio (icono) -->
+  <path d="M16 33 Q16 26 25 26 Q34 26 34 33 Q34 40 25 40 Q16 40 16 33" fill="none" stroke="black" stroke-width="1"/>
+  <path d="M19 33 Q19 29 25 29 Q31 29 31 33 Q31 37 25 37 Q19 37 19 33" fill="none" stroke="black" stroke-width="0.8"/>
+  <!-- Botón home -->
+  <circle cx="25" cy="64" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <!-- Botones laterales -->
+  <rect x="5" y="24" width="2" height="8" rx="1" fill="none" stroke="black" stroke-width="1"/>
+  <rect x="43" y="24" width="2" height="8" rx="1" fill="none" stroke="black" stroke-width="1"/>
+  <!-- Jack -->
+  <rect x="22" y="68" width="6" height="4" rx="2" fill="none" stroke="black" stroke-width="1"/>
+  <text x="25" y="80" text-anchor="middle" font-size="7" font-family="Arial,sans-serif" fill="black">Teléfono</text>
+</svg>

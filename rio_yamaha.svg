@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 150">
+  <!-- Rack frame 5U -->
+  <rect x="10" y="5" width="220" height="140" rx="2" fill="white" stroke="black" stroke-width="2"/>
+  
+  <!-- Orejas de rack -->
+  <rect x="2" y="10" width="8" height="130" rx="1" fill="#333" stroke="black" stroke-width="1"/>
+  <rect x="230" y="10" width="8" height="130" rx="1" fill="#333" stroke="black" stroke-width="1"/>
+  <!-- Agujeros rack -->
+  <circle cx="6" cy="20" r="1.5" fill="white"/>
+  <circle cx="6" cy="40" r="1.5" fill="white"/>
+  <circle cx="6" cy="60" r="1.5" fill="white"/>
+  <circle cx="6" cy="80" r="1.5" fill="white"/>
+  <circle cx="6" cy="100" r="1.5" fill="white"/>
+  <circle cx="6" cy="120" r="1.5" fill="white"/>
+
+  <circle cx="234" cy="20" r="1.5" fill="white"/>
+  <circle cx="234" cy="40" r="1.5" fill="white"/>
+  <circle cx="234" cy="60" r="1.5" fill="white"/>
+  <circle cx="234" cy="80" r="1.5" fill="white"/>
+  <circle cx="234" cy="100" r="1.5" fill="white"/>
+  <circle cx="234" cy="120" r="1.5" fill="white"/>
+
+  <!-- Bloque Entradas (32 Inputs) - Izquierda -->
+  <rect x="15" y="10" width="115" height="130" rx="2" fill="none" stroke="black" stroke-width="1"/>
+  <!-- Texto Inputs -->
+  <text x="72" y="18" text-anchor="middle" font-size="5" font-family="Arial,sans-serif" fill="black">INPUTS (1-32)</text>
+  
+  <!-- 4 filas x 8 columnas de XLR -->
+  <!-- Fila 1 -->
+  <circle cx="25" cy="30" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="35" cy="30" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="45" cy="30" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="55" cy="30" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="65" cy="30" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="75" cy="30" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="85" cy="30" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="95" cy="30" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <!-- Fila 2 -->
+  <circle cx="25" cy="55" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="35" cy="55" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="45" cy="55" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="55" cy="55" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="65" cy="55" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="75" cy="55" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="85" cy="55" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="95" cy="55" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <!-- Fila 3 -->
+  <circle cx="25" cy="80" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="35" cy="80" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="45" cy="80" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="55" cy="80" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="65" cy="80" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="75" cy="80" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="85" cy="80" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="95" cy="80" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <!-- Fila 4 -->
+  <circle cx="25" cy="105" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="35" cy="105" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="45" cy="105" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="55" cy="105" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="65" cy="105" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="75" cy="105" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="85" cy="105" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="95" cy="105" r="4" fill="none" stroke="black" stroke-width="1"/>
+
+  <!-- Bloque Control y Salidas - Derecha -->
+  <!-- Pantalla Dante y Control -->
+  <rect x="135" y="10" width="90" height="35" rx="2" fill="none" stroke="black" stroke-width="1"/>
+  <rect x="175" y="15" width="20" height="15" rx="1" fill="#ccffff" stroke="black" stroke-width="0.8"/>
+  <text x="185" y="24" text-anchor="middle" font-size="5" font-family="monospace" fill="black">Rio32</text>
+  <circle cx="155" cy="22" r="5" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="205" cy="22" r="5" fill="none" stroke="black" stroke-width="1"/>
+  <rect x="215" y="15" width="5" height="10" rx="1" fill="none" stroke="black" stroke-width="1"/>
+  
+  <text x="145" y="42" text-anchor="middle" font-size="4" font-family="Arial,sans-serif" font-weight="bold" fill="black">YAMAHA</text>
+  <text x="210" y="42" text-anchor="middle" font-size="5" font-family="Arial,sans-serif" font-weight="bold" fill="black">Rio3224-D</text>
+
+  <!-- Bloque Salidas AES -->
+  <rect x="135" y="50" width="90" height="25" rx="2" fill="none" stroke="black" stroke-width="1"/>
+  <text x="180" y="56" text-anchor="middle" font-size="4" font-family="Arial,sans-serif" fill="black">AES/EBU OUT</text>
+  <!-- 4 salidas AES -->
+  <circle cx="150" cy="65" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="170" cy="65" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="190" cy="65" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="210" cy="65" r="4" fill="none" stroke="black" stroke-width="1"/>
+
+  <!-- Bloque Salidas Analog -->
+  <rect x="135" y="80" width="90" height="60" rx="2" fill="none" stroke="black" stroke-width="1"/>
+  <text x="180" y="86" text-anchor="middle" font-size="4" font-family="Arial,sans-serif" fill="black">ANALOG OUT (1-16)</text>
+  <!-- 2 filas x 8 columnas -->
+  <circle cx="145" cy="98" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="155" cy="98" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="165" cy="98" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="175" cy="98" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="185" cy="98" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="195" cy="98" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="205" cy="98" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="215" cy="98" r="4" fill="none" stroke="black" stroke-width="1"/>
+
+  <circle cx="145" cy="120" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="155" cy="120" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="165" cy="120" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="175" cy="120" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="185" cy="120" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="195" cy="120" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="205" cy="120" r="4" fill="none" stroke="black" stroke-width="1"/>
+  <circle cx="215" cy="120" r="4" fill="none" stroke="black" stroke-width="1"/>
+</svg>

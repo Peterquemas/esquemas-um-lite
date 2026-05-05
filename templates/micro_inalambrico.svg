@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 70 100">
+  <!-- Cápsula esférica -->
+  <ellipse cx="30" cy="15" rx="14" ry="14" fill="white" stroke="black" stroke-width="1.5"/>
+  <!-- Grille concéntrico -->
+  <ellipse cx="30" cy="15" rx="10" ry="10" fill="none" stroke="black" stroke-width="0.8"/>
+  <ellipse cx="30" cy="15" rx="5" ry="5" fill="none" stroke="black" stroke-width="0.8"/>
+  <!-- LED -->
+  <circle cx="39" cy="9" r="2.5" fill="none" stroke="black" stroke-width="1"/>
+  <!-- Antena -->
+  <line x1="40" y1="12" x2="60" y2="2" stroke="black" stroke-width="1.5" stroke-linecap="round"/>
+  <circle cx="60" cy="2" r="1.5" fill="black"/>
+  <!-- Cuello -->
+  <rect x="25" y="29" width="10" height="5" fill="white" stroke="black" stroke-width="1.2"/>
+  <!-- Mango -->
+  <rect x="22" y="34" width="16" height="28" rx="3" fill="white" stroke="black" stroke-width="1.5"/>
+  <!-- Botón ON/OFF -->
+  <rect x="26" y="40" width="8" height="7" rx="2" fill="none" stroke="black" stroke-width="1"/>
+  <text x="30" y="46" text-anchor="middle" font-size="4.5" font-family="Arial,sans-serif" fill="black">ON</text>
+  <!-- Transmisor body -->
+  <rect x="20" y="62" width="20" height="15" rx="3" fill="white" stroke="black" stroke-width="1.5"/>
+  <!-- Display pequeño -->
+  <rect x="22" y="64" width="10" height="6" rx="1" fill="none" stroke="black" stroke-width="0.8"/>
+  <!-- Clip -->
+  <rect x="40" y="64" width="4" height="12" rx="1" fill="none" stroke="black" stroke-width="1"/>
+  <text x="30" y="96" text-anchor="middle" font-size="6.5" font-family="Arial,sans-serif" fill="black">Micro Inalámbrico</text>
+</svg>
