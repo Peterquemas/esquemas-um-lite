@@ -86,62 +86,57 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-s
     padding: 0 !important;
   }
   .topbar, .sidebar, .right-panel, .canvas-toolbar,
-  .status-bar, .modal-bg { display: none !important; }
-  .workspace {
+  .status-bar, .modal-bg, .workspace { display: none !important; }
+  
+  #print-container {
     display: block !important;
-    height: auto !important;
-    overflow: visible !important;
-    page-break-after: avoid !important;
-    page-break-inside: avoid !important;
-    page-break-before: avoid !important;
+    width: 100%;
   }
-  .canvas-container {
-    overflow: visible !important;
+  .print-page {
     width: 100% !important;
-    height: auto !important;
-    background: white !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    page-break-after: avoid !important;
+    height: 98vh !important;
+    page-break-after: always !important;
     page-break-inside: avoid !important;
-    page-break-before: avoid !important;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
   }
-  #canvas {
-    display: block !important;
+  .print-page:last-child {
+    page-break-after: auto !important;
+  }
+  .print-page svg {
     width: 100% !important;
-    height: 92vh !important;
-    max-height: 92vh !important;
-    transform: none !important;
-    background: white !important;
-    page-break-after: avoid !important;
-    page-break-inside: avoid !important;
-    page-break-before: avoid !important;
-  }
-  .canvas-bg { fill: white !important; }
-  .grid-line { display: none !important; }
-  #print-title {
-    display: block !important;
-    text-align: center;
-    font-size: 11pt;
-    font-weight: bold;
-    margin: 0 0 3mm 0 !important;
-    padding: 0 !important;
-    color: black;
-    page-break-after: avoid !important;
+    height: 100% !important;
+    max-height: 90vh !important;
   }
   @page {
-    size: A3 landscape;
+    size: A4 landscape;
     margin: 5mm;
   }
 }
+.zone-node { cursor: pointer; }
+.zone-node.selected .zone-rect { stroke: #0066cc; outline: 1px dashed #0066cc; }
+.zone-rect { fill: rgba(0,0,0,0.02); stroke: #888; stroke-width: 1.5; stroke-dasharray: 6 4; pointer-events: all; }
+.zone-text { fill: #555; font-size: 14px; font-weight: bold; pointer-events: none; font-family: sans-serif; }
+.project-list { max-height: 300px; overflow-y: auto; border: 1px solid #ccc; border-radius: 4px; margin-top: 10px; }
+.project-item { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+.project-item:last-child { border-bottom: none; }
+.project-item:hover { background: #f9f9f9; }
+.project-info { flex: 1; }
+.project-title { font-weight: bold; font-size: 14px; color: #222; margin-bottom: 4px; }
+.project-date { font-size: 11px; color: #888; }
+.project-actions { display: flex; gap: 8px; }
 </style>
 </head>
 <body>
 
 <div class="topbar">
   <h1>Esquemas UM TVE</h1>
-  <span class="badge">v1.8</span>
+  <span class="badge">v2.2</span>
   <div class="spacer"></div>
+  <button class="btn" onclick="openProjectsModal()">Mis Proyectos</button>
+  <button class="btn primary" onclick="newProject()">+ Nuevo</button>
+  <div style="width: 1px; height: 24px; background: #ddd; margin: 0 8px;"></div>
   <button class="btn" onclick="openDescribeModal()">Describir con IA</button>
   <button class="btn" onclick="loadSchema()">Abrir esquema</button>
   <button class="btn" onclick="saveSchema()">Guardar JSON</button>
@@ -170,6 +165,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-s
       <button id="tool-select" class="active" onclick="setTool('select')">Seleccionar</button>
       <button id="tool-connect" onclick="setTool('connect')">Conectar</button>
       <button id="tool-text" onclick="setTool('text')">Texto</button>
+      <button id="tool-zone" onclick="setTool('zone')">Recuadro</button>
+      <div style="width: 1px; height: 16px; background: #ccc; margin: 4px;"></div>
       <button onclick="deleteSelected()">Borrar</button>
       <button id="btn-undo" onclick="undo()" title="Deshacer Ctrl+Z" disabled>↶ Deshacer</button>
       <button id="btn-redo" onclick="redo()" title="Rehacer Ctrl+Y" disabled>↷ Rehacer</button>
@@ -180,6 +177,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-s
     <svg id="canvas" width="1654" height="1169" xmlns="http://www.w3.org/2000/svg">
       <rect class="canvas-bg" width="100%" height="100%"/>
       <g id="grid"></g>
+      <g id="zones"></g>
       <g id="connections"></g>
       <g id="elements"></g>
       <g id="labels"></g>
@@ -250,6 +248,25 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-s
     </div>
     <div class="modal-buttons">
       <button class="btn" onclick="closeDescribeModal()">Cancelar</button>
+      <button class="btn primary" id="generate-btn" onclick="generateFromDescription()">Generar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="projects-modal">
+  <div class="modal" style="max-width: 600px;">
+    <h2>Mis Proyectos Guardados</h2>
+    <p style="font-size:12px; color:#666;">Los proyectos se guardan en el almacenamiento local de tu navegador.</p>
+    <div class="project-list" id="projects-list-container">
+      <!-- Lista de proyectos -->
+    </div>
+    <div class="modal-buttons">
+      <button class="btn" onclick="closeProjectsModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
+    <div class="modal-buttons">
+      <button class="btn" onclick="closeDescribeModal()">Cancelar</button>
       <button class="btn primary" onclick="generateFromDescription()" id="generate-btn">Generar</button>
     </div>
   </div>
@@ -308,9 +325,11 @@ const CABLE_TYPES = {
 };
 
 let state = {
+  projectId: Date.now().toString(),
   elements: [],
   connections: [],
   notes: [],
+  zones: [],
   selectedId: null,
   selectedType: null,
   tool: 'select',
@@ -410,11 +429,136 @@ function pushHistory() {
     elements: state.elements,
     connections: state.connections,
     notes: state.notes,
+    zones: state.zones,
     title: document.getElementById('diagram-title')?.value || ''
   }));
   if (history.length > 30) history.shift();
   historyIndex = history.length - 1;
   updateUndoRedoButtons();
+  autoSave();
+}
+
+let autoSaveTimeout = null;
+function autoSave() {
+  clearTimeout(autoSaveTimeout);
+  autoSaveTimeout = setTimeout(() => {
+    const data = {
+      projectId: state.projectId,
+      titulo: document.getElementById('diagram-title').value,
+      elementos: state.elements,
+      conexiones: state.connections,
+      notas: state.notes,
+      zonas: state.zones,
+      timestamp: Date.now()
+    };
+    localStorage.setItem('umtve_draft', JSON.stringify(data));
+  }, 1000);
+}
+
+function saveCurrentToProjects() {
+  const data = {
+    projectId: state.projectId,
+    titulo: document.getElementById('diagram-title').value || 'Diagrama sin título',
+    elementos: state.elements,
+    conexiones: state.connections,
+    notas: state.notes,
+    zonas: state.zones,
+    timestamp: Date.now()
+  };
+  localStorage.setItem('umtve_project_' + state.projectId, JSON.stringify(data));
+  
+  let index = JSON.parse(localStorage.getItem('umtve_projects_index') || '[]');
+  const existing = index.find(p => p.id === state.projectId);
+  if (existing) {
+    existing.titulo = data.titulo;
+    existing.timestamp = data.timestamp;
+  } else {
+    index.push({ id: state.projectId, titulo: data.titulo, timestamp: data.timestamp });
+  }
+  localStorage.setItem('umtve_projects_index', JSON.stringify(index));
+}
+
+function newProject() {
+  if (confirm('¿Quieres guardar el proyecto actual en la memoria interna antes de crear uno nuevo?')) {
+    saveCurrentToProjects();
+  }
+  state.projectId = Date.now().toString();
+  loadTemplate('vacio');
+  localStorage.removeItem('umtve_draft');
+}
+
+function openProjectsModal() {
+  saveCurrentToProjects(); // Auto-save current before opening
+  const index = JSON.parse(localStorage.getItem('umtve_projects_index') || '[]');
+  index.sort((a, b) => b.timestamp - a.timestamp);
+  
+  const container = document.getElementById('projects-list-container');
+  container.innerHTML = '';
+  
+  if (index.length === 0) {
+    container.innerHTML = '<p style="padding:15px;color:#888;">No hay proyectos guardados.</p>';
+  } else {
+    index.forEach(p => {
+      const dateStr = new Date(p.timestamp).toLocaleString();
+      const div = document.createElement('div');
+      div.className = 'project-item';
+      div.innerHTML = `
+        <div class="project-info">
+          <div class="project-title">${p.titulo}</div>
+          <div class="project-date">${dateStr}</div>
+        </div>
+        <div class="project-actions">
+          <button class="btn primary" onclick="loadProject('${p.id}')">Cargar</button>
+          <button class="btn danger" onclick="deleteProject('${p.id}')">Borrar</button>
+        </div>
+      `;
+      container.appendChild(div);
+    });
+  }
+  document.getElementById('projects-modal').classList.add('show');
+}
+
+function closeProjectsModal() {
+  document.getElementById('projects-modal').classList.remove('show');
+}
+
+function loadProject(id) {
+  const dataStr = localStorage.getItem('umtve_project_' + id);
+  if (dataStr) {
+    try {
+      const data = JSON.parse(dataStr);
+      loadProjectData(data);
+      state.projectId = id;
+      closeProjectsModal();
+      setStatus('Proyecto cargado desde la memoria interna');
+    } catch (e) { alert('Error al cargar proyecto: ' + e.message); }
+  }
+}
+
+function deleteProject(id) {
+  if (!confirm('¿Seguro que quieres borrar este proyecto de la memoria interna?')) return;
+  localStorage.removeItem('umtve_project_' + id);
+  let index = JSON.parse(localStorage.getItem('umtve_projects_index') || '[]');
+  index = index.filter(p => p.id !== id);
+  localStorage.setItem('umtve_projects_index', JSON.stringify(index));
+  openProjectsModal();
+}
+
+function loadProjectData(data) {
+  pushHistory();
+  document.getElementById('diagram-title').value = data.titulo || 'Diagrama';
+  state.elements = data.elementos || [];
+  state.connections = (data.conexiones || []).map(migrateConnection);
+  state.notes = data.notas || [];
+  state.zones = data.zonas || data.zones || [];
+  const maxId = Math.max(0, 
+    ...state.elements.map(e=>e.id), 
+    ...state.connections.map(c=>c.id), 
+    ...state.notes.map(n=>n.id),
+    ...state.zones.map(z=>z.id)
+  );
+  state.nextId = maxId + 1;
+  renderAll();
 }
 
 function undo() {
@@ -433,6 +577,7 @@ function restoreSnapshot(snap) {
   state.elements = structuredClone(snap.elements);
   state.connections = structuredClone(snap.connections);
   state.notes = structuredClone(snap.notes || []);
+  state.zones = structuredClone(snap.zones || []);
   const titleEl = document.getElementById('diagram-title');
   if (titleEl) titleEl.value = snap.title || '';
   state.selectedId = null;
@@ -490,14 +635,71 @@ function drawConnectOverlay() {
   overlay.appendChild(txt);
 }
 
+let zoneDrawData = null;
+function handleCanvasMouseDown(e) {
+  if (state.tool === 'zone' && (e.target.id === 'canvas' || e.target.classList.contains('canvas-bg'))) {
+    const rect = document.getElementById('canvas').getBoundingClientRect();
+    const x = Math.round((e.clientX - rect.left) / state.zoom);
+    const y = Math.round((e.clientY - rect.top) / state.zoom);
+    zoneDrawData = { startX: x, startY: y };
+    
+    const overlay = document.getElementById('overlay');
+    const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    r.setAttribute('id', 'temp-zone');
+    r.setAttribute('class', 'zone-rect');
+    r.setAttribute('x', x);
+    r.setAttribute('y', y);
+    r.setAttribute('width', 0);
+    r.setAttribute('height', 0);
+    overlay.appendChild(r);
+  }
+}
+
 function handleCanvasMouseMove(e) {
   const rect = document.getElementById('canvas').getBoundingClientRect();
   lastMousePos.x = (e.clientX - rect.left) / state.zoom;
   lastMousePos.y = (e.clientY - rect.top) / state.zoom;
-  if (state.tool === 'connect') {
+  
+  if (state.tool === 'zone' && zoneDrawData) {
+    const curX = lastMousePos.x;
+    const curY = lastMousePos.y;
+    const x = Math.min(zoneDrawData.startX, curX);
+    const y = Math.min(zoneDrawData.startY, curY);
+    const w = Math.abs(curX - zoneDrawData.startX);
+    const h = Math.abs(curY - zoneDrawData.startY);
+    
+    const r = document.getElementById('temp-zone');
+    if (r) {
+      r.setAttribute('x', x); r.setAttribute('y', y);
+      r.setAttribute('width', w); r.setAttribute('height', h);
+    }
+  } else if (state.tool === 'connect') {
     drawConnectOverlay();
   } else {
     clearOverlay();
+  }
+}
+
+function handleCanvasMouseUp(e) {
+  if (state.tool === 'zone' && zoneDrawData) {
+    const curX = lastMousePos.x;
+    const curY = lastMousePos.y;
+    const x = Math.round(Math.min(zoneDrawData.startX, curX));
+    const y = Math.round(Math.min(zoneDrawData.startY, curY));
+    const w = Math.round(Math.abs(curX - zoneDrawData.startX));
+    const h = Math.round(Math.abs(curY - zoneDrawData.startY));
+    
+    const overlay = document.getElementById('overlay');
+    const r = document.getElementById('temp-zone');
+    if (r) r.remove();
+    
+    if (w > 20 && h > 20) {
+      pushHistory();
+      state.zones.push({ id: state.nextId++, x, y, w, h, label: 'Nuevo Recuadro' });
+      setTool('select');
+      renderAll();
+    }
+    zoneDrawData = null;
   }
 }
 
@@ -506,9 +708,23 @@ function init() {
   setupTextInput();
   drawGrid();
   updateApiStatus();
-  loadTemplate('vacio');
-  document.getElementById('canvas').addEventListener('click', handleCanvasClick);
+  
+  const draftStr = localStorage.getItem('umtve_draft');
+  if (draftStr) {
+    try {
+      const data = JSON.parse(draftStr);
+      loadProjectData(data);
+      if (data.projectId) state.projectId = data.projectId;
+      setStatus('Borrador recuperado automáticamente');
+    } catch (e) { loadTemplate('vacio'); }
+  } else {
+    loadTemplate('vacio');
+  }
+  
+  document.getElementById('canvas').addEventListener('mousedown', handleCanvasMouseDown);
   document.getElementById('canvas').addEventListener('mousemove', handleCanvasMouseMove);
+  document.getElementById('canvas').addEventListener('mouseup', handleCanvasMouseUp);
+  document.getElementById('canvas').addEventListener('click', handleCanvasClick);
   document.addEventListener('keydown', handleKeyDown);
 }
 
@@ -576,10 +792,43 @@ function addElement(tipo, x, y, label) {
 }
 
 function renderAll() {
+  renderZones();
   renderElements();
   renderConnections();
   renderNotes();
   updateCounts();
+}
+
+function renderZones() {
+  const zg = document.getElementById('zones');
+  if (!zg) return;
+  zg.innerHTML = '';
+  
+  state.zones.forEach(zone => {
+    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    let nodeClass = 'zone-node';
+    if (state.selectedId === zone.id && state.selectedType === 'zone') nodeClass += ' selected';
+    group.setAttribute('class', nodeClass);
+    group.dataset.id = zone.id;
+    
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('class', 'zone-rect');
+    rect.setAttribute('x', zone.x);
+    rect.setAttribute('y', zone.y);
+    rect.setAttribute('width', zone.w);
+    rect.setAttribute('height', zone.h);
+    group.appendChild(rect);
+    
+    const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    txt.setAttribute('class', 'zone-text');
+    txt.setAttribute('x', zone.x + 10);
+    txt.setAttribute('y', zone.y + 20);
+    txt.textContent = zone.label;
+    group.appendChild(txt);
+    
+    group.addEventListener('click', (e) => { e.stopPropagation(); selectZone(zone.id); });
+    zg.appendChild(group);
+  });
 }
 
 function renderElements() {
@@ -1211,6 +1460,49 @@ function selectNote(id) {
   `;
 }
 
+function selectZone(id) {
+  state.selectedId = id;
+  state.selectedType = 'zone';
+  renderAll();
+  const zone = state.zones.find(z => z.id === id);
+  if (!zone) return;
+  document.getElementById('properties-panel').innerHTML = `
+    <h3>Recuadro</h3>
+    <div class="field">
+      <label>Etiqueta / Título</label>
+      <input type="text" value="${zone.label.replace(/"/g, '&quot;')}" onfocus="pushHistory()" oninput="updateZoneLabel(${zone.id}, this.value)">
+    </div>
+    <div class="field">
+      <label>Posición X / Y</label>
+      <div style="display:flex; gap:4px;">
+        <input type="number" value="${zone.x}" oninput="updateZoneProp(${zone.id}, 'x', this.value)" style="width:50%;">
+        <input type="number" value="${zone.y}" oninput="updateZoneProp(${zone.id}, 'y', this.value)" style="width:50%;">
+      </div>
+    </div>
+    <div class="field">
+      <label>Tamaño W / H</label>
+      <div style="display:flex; gap:4px;">
+        <input type="number" value="${zone.w}" oninput="updateZoneProp(${zone.id}, 'w', this.value)" style="width:50%;">
+        <input type="number" value="${zone.h}" oninput="updateZoneProp(${zone.id}, 'h', this.value)" style="width:50%;">
+      </div>
+    </div>
+    <button class="btn danger" onclick="deleteZone(${zone.id})" style="width:100%; margin-top:8px;">Borrar recuadro</button>
+  `;
+}
+
+function updateZoneLabel(id, v) { const z = state.zones.find(x=>x.id===id); if(z){z.label=v; renderZones();} }
+function updateZoneProp(id, prop, v) { const z = state.zones.find(x=>x.id===id); if(z){z[prop]=parseInt(v)||0; renderZones();} }
+
+function deleteZone(id) {
+  pushHistory();
+  state.zones = state.zones.filter(z => z.id !== id);
+  state.selectedId = null;
+  state.selectedType = null;
+  document.getElementById('properties-panel').innerHTML = '<p style="font-size:11px;color:#888;padding:8px;background:#f9f9f9;border-radius:4px;">Selecciona un elemento o conexión.</p>';
+  renderAll();
+}
+
+
 function updateNoteText(id, v) { const n = state.notes.find(x=>x.id===id); if(n){n.texto=v; renderNotes();} }
 function updateNotePos(id, axis, v) { const n = state.notes.find(x=>x.id===id); if(n){n[axis]=parseInt(v)||0; renderNotes();} }
 function updateNoteFontSize(id, v) { const n = state.notes.find(x=>x.id===id); if(n){n.fontSize=parseInt(v)||12; renderNotes();} }
@@ -1228,6 +1520,7 @@ function deleteSelected() {
   if (state.selectedType === 'element') deleteElement(state.selectedId);
   else if (state.selectedType === 'connection') deleteConnection(state.selectedId);
   else if (state.selectedType === 'note') deleteNote(state.selectedId);
+  else if (state.selectedType === 'zone') deleteZone(state.selectedId);
 }
 
 function handleCanvasClick(e) {
@@ -1373,13 +1666,60 @@ function handleFileLoad(e) {
 }
 
 async function exportPDF() {
-  setStatus('Abriendo diálogo de impresión...');
-  document.getElementById('print-title').textContent =
-    document.getElementById('diagram-title').value || 'Diagrama';
+  setStatus('Preparando PDF multipágina...');
+  
+  // Limpiar selección antes de exportar
+  state.selectedId = null;
+  state.selectedType = null;
+  renderAll();
+  
+  const title = document.getElementById('diagram-title').value || 'Diagrama General';
+  const svgEl = document.getElementById('canvas');
+  const svgMarkup = new XMLSerializer().serializeToString(svgEl);
+  
+  const printContainer = document.createElement('div');
+  printContainer.id = 'print-container';
+  document.body.appendChild(printContainer);
+  
+  // Página 1: Diagrama completo
+  const page1 = document.createElement('div');
+  page1.className = 'print-page';
+  page1.innerHTML = `
+    <h2 style="text-align:center; font-size:14pt; margin:0 0 10px 0; color:black; font-family:sans-serif;">${title}</h2>
+    ${svgMarkup}
+  `;
+  // Ocultar grid y recuadros en la impresión
+  const p1svg = page1.querySelector('svg');
+  if (p1svg) {
+    const p1g = p1svg.querySelector('#grid'); if (p1g) p1g.style.display = 'none';
+    const p1z = p1svg.querySelector('#zones'); if (p1z) p1z.style.display = 'none';
+  }
+  printContainer.appendChild(page1);
+  
+  // Páginas 2..N: Zonas (Recuadros)
+  state.zones.forEach(z => {
+    const page = document.createElement('div');
+    page.className = 'print-page';
+    page.innerHTML = `
+      <h2 style="text-align:center; font-size:14pt; margin:0 0 10px 0; color:black; font-family:sans-serif;">${title} — ${z.label}</h2>
+      ${svgMarkup}
+    `;
+    const svgClone = page.querySelector('svg');
+    if (svgClone) {
+      // Recortar la vista del SVG al recuadro usando viewBox
+      svgClone.setAttribute('viewBox', \`\${z.x} \${z.y} \${z.w} \${z.h}\`);
+      
+      const pGrid = svgClone.querySelector('#grid'); if (pGrid) pGrid.style.display = 'none';
+      const pZones = svgClone.querySelector('#zones'); if (pZones) pZones.style.display = 'none';
+    }
+    printContainer.appendChild(page);
+  });
+  
   setTimeout(() => {
     window.print();
-    setStatus('Listo. En el diálogo: Destino "Guardar como PDF", Tamaño A3, Horizontal');
-  }, 100);
+    printContainer.remove();
+    setStatus('Exportación a PDF completada');
+  }, 500);
 }
 
 function openDescribeModal() {
