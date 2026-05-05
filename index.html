@@ -80,10 +80,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-s
 .chip:hover { background: #d0e0ff; }
 
 @media print {
-  body {
+  html, body {
     background: white !important;
     margin: 0 !important;
     padding: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
   }
   .topbar, .sidebar, .right-panel, .canvas-toolbar,
   .status-bar, .modal-bg, .workspace { display: none !important; }
@@ -94,20 +96,30 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-s
   }
   .print-page {
     width: 100% !important;
-    height: 98vh !important;
+    display: block !important;
     page-break-after: always !important;
+    break-after: page !important;
     page-break-inside: avoid !important;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    margin-bottom: 10mm !important;
   }
   .print-page:last-child {
     page-break-after: auto !important;
+    break-after: auto !important;
+  }
+  .print-page h2 {
+    display: block !important;
+    text-align: center;
+    font-size: 14pt;
+    margin: 0 0 5mm 0 !important;
+    color: black;
+    font-family: sans-serif;
   }
   .print-page svg {
     width: 100% !important;
-    height: 100% !important;
-    max-height: 90vh !important;
+    height: auto !important;
+    max-height: 180mm !important;
+    display: block !important;
+    margin: 0 auto;
   }
   @page {
     size: A4 landscape;
