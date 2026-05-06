@@ -142,13 +142,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-s
   <h1>Esquemas UM TVE</h1>
   <span class="badge">v1.8</span>
   <div class="spacer"></div>
-  <button class="btn" onclick="openDescribeModal()">Describir con IA</button>
   <button class="btn" onclick="recoverSession()" id="btn-recover" style="display:none">Recuperar sesión</button>
   <button class="btn" onclick="loadSchema()">Abrir esquema</button>
   <button class="btn" onclick="saveSchema()">Guardar JSON</button>
   <button class="btn" onclick="exportSVG()">Guardar SVG</button>
   <button class="btn primary" onclick="exportPDF()">Exportar PDF</button>
-  <button class="btn" onclick="openSettings()" title="Configuración">⚙</button>
 </div>
 
 <div class="workspace">
@@ -252,65 +250,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-s
   <span class="spacer" style="flex:1"></span>
   <span id="elem-count">0 elementos</span>
   <span id="conn-count">0 conexiones</span>
-  <span id="api-status" class="warn">API key no configurada</span>
-</div>
-
-<div class="modal-bg" id="describe-modal">
-  <div class="modal">
-    <h2>Describir esquema con IA</h2>
-    <p style="font-size:12px; color:#666; margin-bottom:8px;">
-      Escribe en lenguaje natural el esquema que necesitas. Claude colocará los elementos y conexiones automáticamente.
-    </p>
-    <textarea id="describe-text" rows="8" placeholder="Ej: Partido de fútbol con 2 comentaristas con microcasco e IEM dual, caja de conexión norte, micro inalámbrico para reportero, camión UM central"></textarea>
-    <div style="margin-top:8px;">
-      <span class="chip" onclick="setDescribeText('liga')">Liga estándar</span>
-      <span class="chip" onclick="setDescribeText('champions')">Champions doble</span>
-      <span class="chip" onclick="setDescribeText('simple')">Setup mínimo</span>
-    </div>
-    <div class="modal-buttons">
-      <button class="btn" onclick="closeDescribeModal()">Cancelar</button>
-      <button class="btn primary" onclick="generateFromDescription()" id="generate-btn">Generar</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal-bg" id="settings-modal">
-  <div class="modal">
-    <h2>Configuración</h2>
-    
-    <div class="field">
-      <label>Motor de IA preferido</label>
-      <select id="ai-provider-select" style="width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; font-size:12px;" onchange="toggleApiInputs()">
-        <option value="anthropic">Anthropic (Claude)</option>
-        <option value="google">Google (Gemini)</option>
-      </select>
-    </div>
-
-    <div id="anthropic-input-group">
-      <div class="field">
-        <label>API key de Anthropic (Claude)</label>
-        <input type="password" id="api-key-input" placeholder="sk-ant-api03-..." style="width:100%; padding:8px; font-family:monospace; font-size:11px;">
-        <p style="font-size:10px; color:#888; margin-top:4px;">
-          Obtener clave: <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>
-        </p>
-      </div>
-    </div>
-
-    <div id="google-input-group" style="display:none">
-      <div class="field">
-        <label>API key de Google (Gemini)</label>
-        <input type="password" id="gemini-key-input" placeholder="AIzaSy..." style="width:100%; padding:8px; font-family:monospace; font-size:11px;">
-        <p style="font-size:10px; color:#888; margin-top:4px;">
-          Obtener clave: <a href="https://aistudio.google.com" target="_blank">aistudio.google.com</a>
-        </p>
-      </div>
-    </div>
-
-    <div class="modal-buttons">
-      <button class="btn" onclick="closeSettings()">Cancelar</button>
-      <button class="btn primary" onclick="saveSettings()">Guardar</button>
-    </div>
-  </div>
 </div>
 
 <input type="file" id="file-input" accept=".json" style="display:none" onchange="handleFileLoad(event)">
@@ -381,9 +320,6 @@ let state = {
   nextId: 1,
   history: [],
   historyIndex: -1,
-  aiProvider: localStorage.getItem('umtve_ai_provider') || 'anthropic',
-  apiKey: localStorage.getItem('umtve_api_key') || '',
-  geminiKey: localStorage.getItem('umtve_gemini_key') || ''
 };
 
 const TEMPLATES = {
@@ -441,11 +377,6 @@ const TEMPLATES = {
   vacio: {titulo:"Nuevo diagrama", elementos:[], conexiones:[]}
 };
 
-const DESCRIBE_EXAMPLES = {
-  liga: "Partido de liga con 2 comentaristas con microcasco y sistema IEM dual. Caja de conexión en zona norte conectada al camión UM. Un reportero en campo con micrófono inalámbrico. Pinganillo para el director.",
-  champions: "Retransmisión Champions con dos cabinas: comentaristas españoles e internacionales, cada una con 2 microcascos e IEM dual independiente. Dos cajas de conexión, una por cabina. Micro inalámbrico para zona mixta. Camión UM central.",
-  simple: "Setup mínimo: un comentarista con microcasco, caja de conexión y camión UM."
-};
 
 let lastMousePos = { x: 0, y: 0 };
 
@@ -629,7 +560,6 @@ function init() {
   buildElementList();
   setupTextInput();
   drawGrid();
-  updateApiStatus();
   loadTemplate('vacio');
   updateRecoverBtn();
   document.getElementById('canvas').addEventListener('click', handleCanvasClick);
@@ -1706,208 +1636,6 @@ async function exportPDF() {
   }, 100);
 }
 
-function openDescribeModal() {
-  if (!state.apiKey) {
-    if (confirm('Necesitas configurar la API key de Anthropic primero. ¿Abrir configuración?')) {
-      openSettings();
-    }
-    return;
-  }
-  document.getElementById('describe-modal').classList.add('show');
-}
-function closeDescribeModal() { document.getElementById('describe-modal').classList.remove('show'); }
-function setDescribeText(key) { document.getElementById('describe-text').value = DESCRIBE_EXAMPLES[key] || ''; }
-
-async function generateFromDescription() {
-  const desc = document.getElementById('describe-text').value.trim();
-  if (!desc) { alert('Escribe una descripción primero'); return; }
-  
-  const activeKey = state.aiProvider === 'anthropic' ? state.apiKey : state.geminiKey;
-  if (!activeKey) {
-    alert(`Debes configurar la clave de ${state.aiProvider === 'anthropic' ? 'Anthropic' : 'Google'} en Ajustes.`);
-    openSettings();
-    return;
-  }
-
-  const btn = document.getElementById('generate-btn');
-  btn.disabled = true; btn.textContent = 'Generando...';
-  
-  const elementTypes = ELEMENTS_LIBRARY.map(e => `${e.tipo} (${e.nombre}, ${e.w}x${e.h}px)`).join(', ');
-  
-  const systemPrompt = `Eres experto en instalaciones de sonido para unidades móviles de TV de fútbol.
-Convierte descripciones en JSON para colocar elementos en un canvas de 1654x1169 píxeles.
-
-Elementos disponibles: ${elementTypes}
-
-Reglas de posicionamiento:
-- Camión UM en el centro inferior (y: 600-800)
-- Micrófonos arriba (y: 80-180)
-- Cajas de conexión en medio (y: 350-450)
-- IEM cerca de los micrófonos (y: 230-280)
-- Separación mínima 100px entre elementos
-
-Conexiones (mangueras de cable):
-- Audio analógico de cabinas/zonas con varios micros → tipo: "manguera_8" o "manguera_16" según nº señales
-- Hydra, Dante, red, AES67, IP → tipo: "cable_red"
-- Pinganillos individuales o conexiones simples → tipo: "manguera_8" con pocos canales
-- Si la descripción menciona "manguera de 16" o más de 8 canales → tipo: "manguera_16"
-- Por defecto usar "manguera_8" cuando hay agrupación de señales
-
-Nombres de señal típicos: LOCT1, LOCT2, LOCT3, RSVA, COMENT1, COMENT2, REPOR, AMB1, AMB2, IEM-A, IEM-B, RET-A, RET-B, MIC-MANO
-
-Devuelve SOLO JSON válido (sin markdown, sin explicación) con esta estructura:
-{"titulo":"string","elementos":[{"tipo":"...","x":n,"y":n,"label":"..."}],"conexiones":[{"de":indice_origen,"a":indice_destino,"tipo":"manguera_8|manguera_16|cable_red","etiqueta":"texto corto","canales":[{"num":1,"senal":"LOCT1"}]}]}
-
-Los índices "de" y "a" son el índice (0-based) del elemento en el array "elementos".`;
-  
-  try {
-    let schema;
-    if (state.aiProvider === 'anthropic') {
-      schema = await callAnthropic(systemPrompt, desc);
-    } else {
-      schema = await callGemini(systemPrompt, desc);
-    }
-    
-    if (!schema) throw new Error("No se pudo obtener una respuesta válida del motor de IA.");
-
-    pushHistory();
-    state.elements = []; state.connections = []; state.nextId = 1;
-    document.getElementById('diagram-title').value = schema.titulo || 'Diagrama';
-    
-    const idMap = {};
-    (schema.elementos || []).forEach((el, i) => {
-      const id = addElement(el.tipo, el.x, el.y, el.label);
-      idMap[i] = id;
-    });
-    (schema.conexiones || []).forEach(c => {
-      state.connections.push(migrateConnection({
-        id: state.nextId++,
-        de: idMap[c.de],
-        a: idMap[c.a],
-        tipo: c.tipo,
-        etiqueta: c.etiqueta || c.label || '',
-        canales: c.canales || [],
-        color: c.color, dashed: c.dashed, label: c.label
-      }));
-    });
-    renderAll();
-    closeDescribeModal();
-    setStatus(`Generado con ${state.aiProvider === 'anthropic' ? 'Claude' : 'Gemini'}: ${schema.elementos?.length || 0} elementos, ${schema.conexiones?.length || 0} conexiones`);
-  } catch (err) {
-    alert('Error: ' + err.message);
-    setStatus('Error en generación');
-  } finally {
-    btn.disabled = false; btn.textContent = 'Generar';
-  }
-}
-
-async function callAnthropic(system, user) {
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': state.apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
-    },
-    body: JSON.stringify({
-      model: 'claude-3-5-sonnet-20240620',
-      max_tokens: 4000,
-      system: system,
-      messages: [{role: 'user', content: user}]
-    })
-  });
-  
-  if (!resp.ok) {
-    const err = await resp.text();
-    throw new Error(`Anthropic API error ${resp.status}: ${err}`);
-  }
-  
-  const data = await resp.json();
-  let text = data.content[0].text.trim();
-  return parseJsonFromAi(text);
-}
-
-async function callGemini(system, user) {
-  // Usamos Gemini 1.5 Flash por su rapidez y eficiencia en JSON
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${state.geminiKey}`;
-  
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: `INSTRUCCIONES DE SISTEMA:
-${system}
-
-PETICIÓN DEL USUARIO:
-${user}` }] }],
-      generationConfig: {
-        response_mime_type: "application/json",
-        temperature: 0.1
-      }
-    })
-  });
-
-  if (!resp.ok) {
-    const err = await resp.text();
-    throw new Error(`Gemini API error ${resp.status}: ${err}`);
-  }
-
-  const data = await resp.json();
-  const text = data.candidates[0].content.parts[0].text;
-  return parseJsonFromAi(text);
-}
-
-function parseJsonFromAi(text) {
-  let cleanText = text.trim();
-  if (cleanText.startsWith('```')) {
-    cleanText = cleanText.replace(/^```(json)?/, '').replace(/```$/, '').trim();
-  }
-  return JSON.parse(cleanText);
-}
-
-
-function toggleApiInputs() {
-  const provider = document.getElementById('ai-provider-select').value;
-  const ant = document.getElementById('anthropic-input-group');
-  const goo = document.getElementById('google-input-group');
-  if (ant) ant.style.display = provider === 'anthropic' ? 'block' : 'none';
-  if (goo) goo.style.display = provider === 'google' ? 'block' : 'none';
-}
-
-function openSettings() {
-  document.getElementById('ai-provider-select').value = state.aiProvider;
-  document.getElementById('api-key-input').value = state.apiKey;
-  document.getElementById('gemini-key-input').value = state.geminiKey;
-  toggleApiInputs();
-  document.getElementById('settings-modal').classList.add('show');
-}
-function closeSettings() { document.getElementById('settings-modal').classList.remove('show'); }
-function saveSettings() {
-  state.aiProvider = document.getElementById('ai-provider-select').value;
-  state.apiKey = document.getElementById('api-key-input').value.trim();
-  state.geminiKey = document.getElementById('gemini-key-input').value.trim();
-  
-  localStorage.setItem('umtve_ai_provider', state.aiProvider);
-  localStorage.setItem('umtve_api_key', state.apiKey);
-  localStorage.setItem('umtve_gemini_key', state.geminiKey);
-  
-  updateApiStatus();
-  closeSettings();
-}
-function updateApiStatus() {
-  const el = document.getElementById('api-status');
-  const activeKey = state.aiProvider === 'anthropic' ? state.apiKey : state.geminiKey;
-  const providerName = state.aiProvider === 'anthropic' ? 'Claude' : 'Gemini';
-  
-  if (activeKey) {
-    el.textContent = `API ${providerName} configurada`;
-    el.className = 'ok';
-  } else {
-    el.textContent = `API ${providerName} no configurada`;
-    el.className = 'warn';
-  }
-}
 
 
 function exportSVG() {
