@@ -80,77 +80,70 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-s
 .chip:hover { background: #d0e0ff; }
 
 @media print {
-  html, body {
+  body {
     background: white !important;
     margin: 0 !important;
     padding: 0 !important;
-    height: auto !important;
-    overflow: visible !important;
-    display: block !important;
   }
   .topbar, .sidebar, .right-panel, .canvas-toolbar,
-  .status-bar, .modal-bg, .workspace { display: none !important; }
-  
-  #print-container {
+  .status-bar, .modal-bg { display: none !important; }
+  .workspace {
     display: block !important;
-    width: 100%;
-  }
-  .print-page {
-    width: 100% !important;
-    display: block !important;
-    page-break-after: always !important;
-    break-after: page !important;
+    height: auto !important;
+    overflow: visible !important;
+    page-break-after: avoid !important;
     page-break-inside: avoid !important;
-    margin-bottom: 10mm !important;
+    page-break-before: avoid !important;
   }
-  .print-page:last-child {
-    page-break-after: auto !important;
-    break-after: auto !important;
-  }
-  .print-page h2 {
-    display: block !important;
-    text-align: center;
-    font-size: 14pt;
-    margin: 0 0 5mm 0 !important;
-    color: black;
-    font-family: sans-serif;
-  }
-  .print-page svg {
+  .canvas-container {
+    overflow: visible !important;
     width: 100% !important;
     height: auto !important;
-    max-height: 180mm !important;
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+    page-break-before: avoid !important;
+  }
+  #canvas {
     display: block !important;
-    margin: 0 auto;
+    width: 100% !important;
+    height: 92vh !important;
+    max-height: 92vh !important;
+    transform: none !important;
+    background: white !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+    page-break-before: avoid !important;
+  }
+  .canvas-bg { fill: white !important; }
+  .grid-line { display: none !important; }
+  #print-title {
+    display: block !important;
+    text-align: center;
+    font-size: 11pt;
+    font-weight: bold;
+    margin: 0 0 3mm 0 !important;
+    padding: 0 !important;
+    color: black;
+    page-break-after: avoid !important;
   }
   @page {
-    size: A4 landscape;
+    size: A3 landscape;
     margin: 5mm;
   }
 }
-.zone-node { cursor: pointer; }
-.zone-node.selected .zone-rect { stroke: #0066cc; outline: 1px dashed #0066cc; }
-.zone-rect { fill: rgba(0,0,0,0.02); stroke: #888; stroke-width: 1.5; stroke-dasharray: 6 4; pointer-events: all; }
-.zone-text { fill: #555; font-size: 14px; font-weight: bold; pointer-events: none; font-family: sans-serif; }
-.project-list { max-height: 300px; overflow-y: auto; border: 1px solid #ccc; border-radius: 4px; margin-top: 10px; }
-.project-item { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-.project-item:last-child { border-bottom: none; }
-.project-item:hover { background: #f9f9f9; }
-.project-info { flex: 1; }
-.project-title { font-weight: bold; font-size: 14px; color: #222; margin-bottom: 4px; }
-.project-date { font-size: 11px; color: #888; }
-.project-actions { display: flex; gap: 8px; }
 </style>
 </head>
 <body>
 
 <div class="topbar">
   <h1>Esquemas UM TVE</h1>
-  <span class="badge">v2.2</span>
+  <span class="badge">v1.8</span>
   <div class="spacer"></div>
-  <button class="btn" onclick="openProjectsModal()">Mis Proyectos</button>
-  <button class="btn primary" onclick="newProject()">+ Nuevo</button>
-  <div style="width: 1px; height: 24px; background: #ddd; margin: 0 8px;"></div>
   <button class="btn" onclick="openDescribeModal()">Describir con IA</button>
+  <button class="btn" onclick="recoverSession()" id="btn-recover" style="display:none">Recuperar sesión</button>
   <button class="btn" onclick="loadSchema()">Abrir esquema</button>
   <button class="btn" onclick="saveSchema()">Guardar JSON</button>
   <button class="btn" onclick="exportSVG()">Guardar SVG</button>
@@ -178,8 +171,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-s
       <button id="tool-select" class="active" onclick="setTool('select')">Seleccionar</button>
       <button id="tool-connect" onclick="setTool('connect')">Conectar</button>
       <button id="tool-text" onclick="setTool('text')">Texto</button>
-      <button id="tool-zone" onclick="setTool('zone')">Recuadro</button>
-      <div style="width: 1px; height: 16px; background: #ccc; margin: 4px;"></div>
       <button onclick="deleteSelected()">Borrar</button>
       <button id="btn-undo" onclick="undo()" title="Deshacer Ctrl+Z" disabled>↶ Deshacer</button>
       <button id="btn-redo" onclick="redo()" title="Rehacer Ctrl+Y" disabled>↷ Rehacer</button>
@@ -188,11 +179,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-s
       <button onclick="zoomReset()">100%</button>
     </div>
     <svg id="canvas" width="1654" height="1169" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="xlr-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+          <polygon points="0 0, 7 3.5, 0 7" fill="#111111"/>
+        </marker>
+      </defs>
       <rect class="canvas-bg" width="100%" height="100%"/>
       <g id="grid"></g>
-      <g id="zones"></g>
       <g id="connections"></g>
       <g id="elements"></g>
+      <g id="conn-labels"></g>
       <g id="labels"></g>
       <g id="notes"></g>
       <g id="overlay"></g>
@@ -214,25 +210,37 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-s
     
     <h3 style="margin-top:20px">Tipos de cable</h3>
     <div style="font-size:11px; color:#555; line-height:1.8;">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
         <svg width="32" height="10" viewBox="0 0 32 10" style="flex-shrink:0;">
           <line x1="0" y1="3" x2="32" y2="3" stroke="#cc3300" stroke-width="2.5"/>
           <line x1="0" y1="7" x2="32" y2="7" stroke="#cc3300" stroke-width="2.5"/>
         </svg>
-        Manguera 8 · 8 canales analógicos
+        <span><b>Manguera 8</b> · analógica · 8 ch</span>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
         <svg width="32" height="10" viewBox="0 0 32 10" style="flex-shrink:0;">
           <line x1="0" y1="3" x2="32" y2="3" stroke="#0066cc" stroke-width="3"/>
           <line x1="0" y1="7" x2="32" y2="7" stroke="#0066cc" stroke-width="3"/>
         </svg>
-        Manguera 16 · 16 canales analógicos
+        <span><b>Manguera 16</b> · analógica · 16 ch</span>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
+        <svg width="32" height="10" viewBox="0 0 32 10" style="flex-shrink:0;">
+          <line x1="0" y1="5" x2="32" y2="5" stroke="#111111" stroke-width="2"/>
+        </svg>
+        <span><b>XLR Audio</b> · elem. individuales</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
         <svg width="32" height="10" viewBox="0 0 32 10" style="flex-shrink:0;">
           <line x1="0" y1="5" x2="32" y2="5" stroke="#228b22" stroke-width="2.5"/>
         </svg>
-        Cable de red · Hydra/Dante
+        <span><b>Red / Fibra</b> · digital · 16 ch</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <svg width="32" height="10" viewBox="0 0 32 10" style="flex-shrink:0;">
+          <line x1="0" y1="5" x2="32" y2="5" stroke="#444444" stroke-width="3.5"/>
+        </svg>
+        <span><b>Triax</b> · cámara de TV</span>
       </div>
     </div>
   </div>
@@ -259,25 +267,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-s
       <span class="chip" onclick="setDescribeText('champions')">Champions doble</span>
       <span class="chip" onclick="setDescribeText('simple')">Setup mínimo</span>
     </div>
-    <div class="modal-buttons">
-      <button class="btn" onclick="closeDescribeModal()">Cancelar</button>
-      <button class="btn primary" id="generate-btn" onclick="generateFromDescription()">Generar</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal-bg" id="projects-modal">
-  <div class="modal" style="max-width: 600px;">
-    <h2>Mis Proyectos Guardados</h2>
-    <p style="font-size:12px; color:#666;">Los proyectos se guardan en el almacenamiento local de tu navegador.</p>
-    <div class="project-list" id="projects-list-container">
-      <!-- Lista de proyectos -->
-    </div>
-    <div class="modal-buttons">
-      <button class="btn" onclick="closeProjectsModal()">Cerrar</button>
-    </div>
-  </div>
-</div>
     <div class="modal-buttons">
       <button class="btn" onclick="closeDescribeModal()">Cancelar</button>
       <button class="btn primary" onclick="generateFromDescription()" id="generate-btn">Generar</button>
@@ -328,27 +317,70 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-s
 
 
 <script>
-const ELEMENTS_LIBRARY = [{"tipo": "camion_um", "nombre": "Cami\u00f3n UM", "w": 420, "h": 160, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 420 160\">\n  <!-- ======= CABINA ======= -->\n  <rect x=\"5\" y=\"45\" width=\"65\" height=\"72\" rx=\"5\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <path d=\"M10 45 Q10 28 35 26 Q60 24 70 45\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <path d=\"M14 44 Q14 32 35 30 Q56 28 66 44\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <rect x=\"12\" y=\"52\" width=\"22\" height=\"16\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <line x1=\"46\" y1=\"60\" x2=\"46\" y2=\"117\" stroke=\"black\" stroke-width=\"0.8\" stroke-dasharray=\"3,2\"/>\n  <rect x=\"50\" y=\"83\" width=\"8\" height=\"3\" rx=\"1.5\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <rect x=\"0\" y=\"54\" width=\"8\" height=\"5\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <line x1=\"5\" y1=\"57\" x2=\"12\" y2=\"57\" stroke=\"black\" stroke-width=\"1\"/>\n  <rect x=\"6\" y=\"97\" width=\"14\" height=\"8\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <rect x=\"5\" y=\"106\" width=\"18\" height=\"11\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <line x1=\"5\" y1=\"109\" x2=\"23\" y2=\"109\" stroke=\"black\" stroke-width=\"0.5\"/>\n  <line x1=\"5\" y1=\"112\" x2=\"23\" y2=\"112\" stroke=\"black\" stroke-width=\"0.5\"/>\n  <rect x=\"3\" y=\"117\" width=\"24\" height=\"5\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <!-- Eje cabina-remolque -->\n  <line x1=\"70\" y1=\"90\" x2=\"82\" y2=\"90\" stroke=\"black\" stroke-width=\"3\"/>\n\n  <!-- ======= REMOLQUE ======= -->\n  <rect x=\"80\" y=\"28\" width=\"332\" height=\"97\" rx=\"4\" fill=\"white\" stroke=\"black\" stroke-width=\"2.5\"/>\n  <!-- King pin -->\n  <rect x=\"76\" y=\"118\" width=\"14\" height=\"7\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n\n  <!-- ======= RACK ANAL\u00d3GICO (16 XLR macho, 2 filas x 8) ======= -->\n  <rect x=\"88\" y=\"36\" width=\"150\" height=\"81\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <text x=\"163\" y=\"46\" text-anchor=\"middle\" font-size=\"7\" font-family=\"Arial,sans-serif\" fill=\"black\">Anal\u00f3gico</text>\n\n  <!-- Fila 1: ch 1-8 (XLR macho: c\u00edrculo + 3 pines rellenos) -->\n  <!-- ch1 -->\n  <circle cx=\"103\" cy=\"62\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"101\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"105\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"103\" cy=\"60\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"103\" y=\"74\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">1</text>\n  <!-- ch2 -->\n  <circle cx=\"121\" cy=\"62\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"119\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"123\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"121\" cy=\"60\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"121\" y=\"74\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">2</text>\n  <!-- ch3 -->\n  <circle cx=\"139\" cy=\"62\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"137\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"141\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"139\" cy=\"60\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"139\" y=\"74\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">3</text>\n  <!-- ch4 -->\n  <circle cx=\"157\" cy=\"62\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"155\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"159\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"157\" cy=\"60\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"157\" y=\"74\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">4</text>\n  <!-- ch5 -->\n  <circle cx=\"175\" cy=\"62\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"173\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"177\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"175\" cy=\"60\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"175\" y=\"74\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">5</text>\n  <!-- ch6 -->\n  <circle cx=\"193\" cy=\"62\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"191\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"195\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"193\" cy=\"60\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"193\" y=\"74\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">6</text>\n  <!-- ch7 -->\n  <circle cx=\"211\" cy=\"62\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"209\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"213\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"211\" cy=\"60\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"211\" y=\"74\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">7</text>\n  <!-- ch8 -->\n  <circle cx=\"229\" cy=\"62\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"227\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"231\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"229\" cy=\"60\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"229\" y=\"74\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">8</text>\n\n  <!-- Fila 2: ch 9-16 -->\n  <!-- ch9 -->\n  <circle cx=\"103\" cy=\"89\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"101\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"105\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"103\" cy=\"87\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"103\" y=\"101\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">9</text>\n  <!-- ch10 -->\n  <circle cx=\"121\" cy=\"89\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"119\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"123\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"121\" cy=\"87\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"121\" y=\"101\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">10</text>\n  <!-- ch11 -->\n  <circle cx=\"139\" cy=\"89\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"137\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"141\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"139\" cy=\"87\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"139\" y=\"101\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">11</text>\n  <!-- ch12 -->\n  <circle cx=\"157\" cy=\"89\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"155\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"159\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"157\" cy=\"87\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"157\" y=\"101\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">12</text>\n  <!-- ch13 -->\n  <circle cx=\"175\" cy=\"89\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"173\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"177\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"175\" cy=\"87\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"175\" y=\"101\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">13</text>\n  <!-- ch14 -->\n  <circle cx=\"193\" cy=\"89\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"191\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"195\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"193\" cy=\"87\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"193\" y=\"101\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">14</text>\n  <!-- ch15 -->\n  <circle cx=\"211\" cy=\"89\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"209\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"213\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"211\" cy=\"87\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"211\" y=\"101\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">15</text>\n  <!-- ch16 -->\n  <circle cx=\"229\" cy=\"89\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"227\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"231\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"229\" cy=\"87\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"229\" y=\"101\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">16</text>\n\n  <!-- ======= RACK HYDRA (9 XLR hembra, 3 filas x 3) ======= -->\n  <rect x=\"248\" y=\"36\" width=\"156\" height=\"81\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <text x=\"326\" y=\"46\" text-anchor=\"middle\" font-size=\"7\" font-family=\"Arial,sans-serif\" fill=\"black\">Hydra</text>\n\n  <!-- Fila 1: ch 1-3 (XLR hembra: c\u00edrculo doble) -->\n  <circle cx=\"272\" cy=\"60\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"272\" cy=\"60\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"272\" y=\"73\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">1</text>\n  <circle cx=\"296\" cy=\"60\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"296\" cy=\"60\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"296\" y=\"73\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">2</text>\n  <circle cx=\"320\" cy=\"60\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"320\" cy=\"60\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"320\" y=\"73\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">3</text>\n  <circle cx=\"344\" cy=\"60\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"344\" cy=\"60\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"344\" y=\"73\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">4</text>\n  <circle cx=\"368\" cy=\"60\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"368\" cy=\"60\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"368\" y=\"73\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">5</text>\n\n  <!-- Fila 2: ch 6-9 -->\n  <circle cx=\"272\" cy=\"86\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"272\" cy=\"86\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"272\" y=\"99\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">6</text>\n  <circle cx=\"296\" cy=\"86\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"296\" cy=\"86\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"296\" y=\"99\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">7</text>\n  <circle cx=\"320\" cy=\"86\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"320\" cy=\"86\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"320\" y=\"99\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">8</text>\n  <circle cx=\"344\" cy=\"86\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"344\" cy=\"86\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"344\" y=\"99\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">9</text>\n\n  <!-- ======= RUEDAS ======= -->\n  <circle cx=\"55\" cy=\"138\" r=\"14\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <circle cx=\"55\" cy=\"138\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"55\" cy=\"138\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n\n  <circle cx=\"240\" cy=\"138\" r=\"14\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <circle cx=\"240\" cy=\"138\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"240\" cy=\"138\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n\n  <circle cx=\"310\" cy=\"138\" r=\"14\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <circle cx=\"310\" cy=\"138\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"310\" cy=\"138\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n\n  <circle cx=\"348\" cy=\"138\" r=\"14\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <circle cx=\"348\" cy=\"138\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"348\" cy=\"138\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n\n  <!-- Chasis -->\n  <line x1=\"80\" y1=\"125\" x2=\"412\" y2=\"125\" stroke=\"black\" stroke-width=\"2\"/>\n\n  <!-- Etiqueta -->\n  <text x=\"246\" y=\"156\" text-anchor=\"middle\" font-size=\"8.5\" font-family=\"Arial,sans-serif\" fill=\"black\">Cami\u00f3n UM \u00b7 Unidad M\u00f3vil</text>\n</svg>\n"}, {"tipo": "panel_analogico", "nombre": "Panel Anal\u00f3gico 16", "w": 200, "h": 90, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 90\">\n  <!-- Rack frame 2U -->\n  <rect x=\"2\" y=\"2\" width=\"196\" height=\"86\" rx=\"3\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <!-- Etiqueta lateral -->\n  <rect x=\"5\" y=\"5\" width=\"16\" height=\"80\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"13\" y=\"45\" text-anchor=\"middle\" font-size=\"7\" font-family=\"Arial,sans-serif\" fill=\"black\" transform=\"rotate(-90,13,45)\">ANALOGUE</text>\n  <!-- Panel interior -->\n  <rect x=\"24\" y=\"5\" width=\"170\" height=\"80\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.5\"/>\n  \n  <!-- Label top -->\n  <text x=\"109\" y=\"15\" text-anchor=\"middle\" font-size=\"6\" font-family=\"Arial,sans-serif\" fill=\"black\">Analogue I/O \u00b7 16 canales XLR</text>\n  \n  <!-- 8 XLR hembra (entradas) fila superior, numerados 1-8 -->\n  <text x=\"35\" y=\"24\" text-anchor=\"middle\" font-size=\"4.5\" font-family=\"Arial,sans-serif\" fill=\"black\">IN</text>\n  <!-- XLR-F iconos fila 1 (c\u00edrculo + c\u00edrculo interior = hembra) -->\n  <circle cx=\"35\" cy=\"37\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"35\" cy=\"37\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"35\" y=\"50\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">1</text>\n  <circle cx=\"55\" cy=\"37\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"55\" cy=\"37\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"55\" y=\"50\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">2</text>\n  <circle cx=\"75\" cy=\"37\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"75\" cy=\"37\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"75\" y=\"50\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">3</text>\n  <circle cx=\"95\" cy=\"37\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"95\" cy=\"37\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"95\" y=\"50\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">4</text>\n  <circle cx=\"115\" cy=\"37\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"115\" cy=\"37\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"115\" y=\"50\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">5</text>\n  <circle cx=\"135\" cy=\"37\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"135\" cy=\"37\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"135\" y=\"50\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">6</text>\n  <circle cx=\"155\" cy=\"37\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"155\" cy=\"37\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"155\" y=\"50\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">7</text>\n  <circle cx=\"175\" cy=\"37\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"175\" cy=\"37\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"175\" y=\"50\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">8</text>\n\n  <!-- 8 XLR macho (salidas) fila inferior, numerados 9-16 -->\n  <text x=\"35\" y=\"57\" text-anchor=\"middle\" font-size=\"4.5\" font-family=\"Arial,sans-serif\" fill=\"black\">OUT</text>\n  <!-- XLR-M iconos fila 2 (c\u00edrculo + 3 pines triangulares = macho) -->\n  <circle cx=\"35\" cy=\"68\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"33\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"37\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"35\" cy=\"66\" r=\"1.3\" fill=\"black\"/>\n  <text x=\"35\" y=\"81\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">9</text>\n  <circle cx=\"55\" cy=\"68\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"53\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"57\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"55\" cy=\"66\" r=\"1.3\" fill=\"black\"/>\n  <text x=\"55\" y=\"81\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">10</text>\n  <circle cx=\"75\" cy=\"68\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"73\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"77\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"75\" cy=\"66\" r=\"1.3\" fill=\"black\"/>\n  <text x=\"75\" y=\"81\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">11</text>\n  <circle cx=\"95\" cy=\"68\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"93\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"97\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"95\" cy=\"66\" r=\"1.3\" fill=\"black\"/>\n  <text x=\"95\" y=\"81\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">12</text>\n  <circle cx=\"115\" cy=\"68\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"113\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"117\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"115\" cy=\"66\" r=\"1.3\" fill=\"black\"/>\n  <text x=\"115\" y=\"81\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">13</text>\n  <circle cx=\"135\" cy=\"68\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"133\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"137\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"135\" cy=\"66\" r=\"1.3\" fill=\"black\"/>\n  <text x=\"135\" y=\"81\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">14</text>\n  <circle cx=\"155\" cy=\"68\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"153\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"157\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"155\" cy=\"66\" r=\"1.3\" fill=\"black\"/>\n  <text x=\"155\" y=\"81\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">15</text>\n  <circle cx=\"175\" cy=\"68\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"173\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"177\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"175\" cy=\"66\" r=\"1.3\" fill=\"black\"/>\n  <text x=\"175\" y=\"81\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">16</text>\n</svg>\n"}, {"tipo": "panel_hydra_brio", "nombre": "Panel Hydra Br.IO", "w": 220, "h": 130, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 220 130\">\n  <!-- Rack frame 4U estilo Calrec Br.IO -->\n  <rect x=\"2\" y=\"2\" width=\"216\" height=\"126\" rx=\"3\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <!-- Etiqueta lateral HYDRA -->\n  <rect x=\"5\" y=\"5\" width=\"18\" height=\"120\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"14\" y=\"65\" text-anchor=\"middle\" font-size=\"8\" font-family=\"Arial,sans-serif\" fill=\"black\" transform=\"rotate(-90,14,65)\">HYDRA NET</text>\n\n  <!-- === SECCI\u00d3N AES/DIGITAL izquierda === -->\n  <rect x=\"26\" y=\"5\" width=\"50\" height=\"120\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"51\" y=\"14\" text-anchor=\"middle\" font-size=\"5.5\" font-family=\"Arial,sans-serif\" fill=\"black\">AES3 / Digital</text>\n  <!-- 8 BNC (4x2) -->\n  <!-- Columna 1 -->\n  <circle cx=\"38\" cy=\"26\" r=\"5\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/><circle cx=\"38\" cy=\"26\" r=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"38\" y=\"36\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">1</text>\n  <circle cx=\"38\" cy=\"48\" r=\"5\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/><circle cx=\"38\" cy=\"48\" r=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"38\" y=\"58\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">2</text>\n  <circle cx=\"38\" cy=\"70\" r=\"5\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/><circle cx=\"38\" cy=\"70\" r=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"38\" y=\"80\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">3</text>\n  <circle cx=\"38\" cy=\"92\" r=\"5\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/><circle cx=\"38\" cy=\"92\" r=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"38\" y=\"102\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">4</text>\n  <!-- Columna 2 -->\n  <circle cx=\"60\" cy=\"26\" r=\"5\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/><circle cx=\"60\" cy=\"26\" r=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"60\" y=\"36\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">5</text>\n  <circle cx=\"60\" cy=\"48\" r=\"5\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/><circle cx=\"60\" cy=\"48\" r=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"60\" y=\"58\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">6</text>\n  <circle cx=\"60\" cy=\"70\" r=\"5\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/><circle cx=\"60\" cy=\"70\" r=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"60\" y=\"80\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">7</text>\n  <circle cx=\"60\" cy=\"92\" r=\"5\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/><circle cx=\"60\" cy=\"92\" r=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"60\" y=\"102\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">8</text>\n  <text x=\"51\" y=\"118\" text-anchor=\"middle\" font-size=\"4.5\" font-family=\"Arial,sans-serif\" fill=\"black\">BNC (AES)</text>\n\n  <!-- === SECCI\u00d3N XLR SALIDAS (macho) === -->\n  <rect x=\"78\" y=\"5\" width=\"60\" height=\"120\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"108\" y=\"14\" text-anchor=\"middle\" font-size=\"5.5\" font-family=\"Arial,sans-serif\" fill=\"black\">Line Out (XLR-M)</text>\n  <!-- XLR Macho - 3 pines interior tri\u00e1ngulo, 4x2=8 -->\n  <!-- Fila 1 -->\n  <circle cx=\"90\" cy=\"28\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"88\" cy=\"29\" r=\"1.2\" fill=\"black\"/><circle cx=\"92\" cy=\"29\" r=\"1.2\" fill=\"black\"/><circle cx=\"90\" cy=\"26\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"90\" y=\"40\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">1</text>\n  <circle cx=\"107\" cy=\"28\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"105\" cy=\"29\" r=\"1.2\" fill=\"black\"/><circle cx=\"109\" cy=\"29\" r=\"1.2\" fill=\"black\"/><circle cx=\"107\" cy=\"26\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"107\" y=\"40\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">2</text>\n  <circle cx=\"124\" cy=\"28\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"122\" cy=\"29\" r=\"1.2\" fill=\"black\"/><circle cx=\"126\" cy=\"29\" r=\"1.2\" fill=\"black\"/><circle cx=\"124\" cy=\"26\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"124\" y=\"40\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">3</text>\n  <!-- Fila 2 -->\n  <circle cx=\"90\" cy=\"54\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"88\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"92\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"90\" cy=\"52\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"90\" y=\"66\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">4</text>\n  <circle cx=\"107\" cy=\"54\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"105\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"109\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"107\" cy=\"52\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"107\" y=\"66\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">5</text>\n  <circle cx=\"124\" cy=\"54\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"122\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"126\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"124\" cy=\"52\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"124\" y=\"66\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">6</text>\n  <!-- Fila 3 -->\n  <circle cx=\"90\" cy=\"80\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"88\" cy=\"81\" r=\"1.2\" fill=\"black\"/><circle cx=\"92\" cy=\"81\" r=\"1.2\" fill=\"black\"/><circle cx=\"90\" cy=\"78\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"90\" y=\"92\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">7</text>\n  <circle cx=\"107\" cy=\"80\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"105\" cy=\"81\" r=\"1.2\" fill=\"black\"/><circle cx=\"109\" cy=\"81\" r=\"1.2\" fill=\"black\"/><circle cx=\"107\" cy=\"78\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"107\" y=\"92\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">8</text>\n  <circle cx=\"124\" cy=\"80\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"122\" cy=\"81\" r=\"1.2\" fill=\"black\"/><circle cx=\"126\" cy=\"81\" r=\"1.2\" fill=\"black\"/><circle cx=\"124\" cy=\"78\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"124\" y=\"92\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">9</text>\n  <text x=\"108\" y=\"118\" text-anchor=\"middle\" font-size=\"4.5\" font-family=\"Arial,sans-serif\" fill=\"black\">Salidas Anal\u00f3gicas</text>\n\n  <!-- === SECCI\u00d3N XLR ENTRADAS (hembra) 8ch === -->\n  <rect x=\"140\" y=\"5\" width=\"60\" height=\"120\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"170\" y=\"14\" text-anchor=\"middle\" font-size=\"5.5\" font-family=\"Arial,sans-serif\" fill=\"black\">Mic/Line In (XLR-F)</text>\n  <!-- XLR Hembra - hueco central + 3 pines -->\n  <!-- Fila 1 -->\n  <circle cx=\"152\" cy=\"28\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"152\" cy=\"28\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"152\" y=\"40\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">1</text>\n  <circle cx=\"169\" cy=\"28\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"169\" cy=\"28\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"169\" y=\"40\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">2</text>\n  <circle cx=\"186\" cy=\"28\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"186\" cy=\"28\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"186\" y=\"40\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">3</text>\n  <!-- Fila 2 -->\n  <circle cx=\"152\" cy=\"54\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"152\" cy=\"54\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"152\" y=\"66\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">4</text>\n  <circle cx=\"169\" cy=\"54\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"169\" cy=\"54\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"169\" y=\"66\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">5</text>\n  <circle cx=\"186\" cy=\"54\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"186\" cy=\"54\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"186\" y=\"66\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">6</text>\n  <!-- Fila 3 -->\n  <circle cx=\"152\" cy=\"80\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"152\" cy=\"80\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"152\" y=\"92\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">7</text>\n  <circle cx=\"169\" cy=\"80\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"169\" cy=\"80\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"169\" y=\"92\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">8</text>\n  <circle cx=\"186\" cy=\"80\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"186\" cy=\"80\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"186\" y=\"92\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">9</text>\n  <text x=\"170\" y=\"118\" text-anchor=\"middle\" font-size=\"4.5\" font-family=\"Arial,sans-serif\" fill=\"black\">Entradas Anal\u00f3gicas</text>\n\n  <!-- === Red / IP panel derecho === -->\n  <rect x=\"202\" y=\"5\" width=\"14\" height=\"120\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <!-- Puerto RJ45/etherCON -->\n  <rect x=\"204\" y=\"20\" width=\"10\" height=\"8\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <!-- Antena WiFi s\u00edmbolo -->\n  <path d=\"M209 40 Q209 35 209 32\" stroke=\"black\" stroke-width=\"1\" fill=\"none\"/>\n  <path d=\"M205 38 Q205 30 209 28 Q213 30 213 38\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <path d=\"M203 42 Q203 29 209 26 Q215 29 215 42\" fill=\"none\" stroke=\"black\" stroke-width=\"0.6\"/>\n  <!-- Conector BNC red -->\n  <circle cx=\"209\" cy=\"65\" r=\"4\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"209\" cy=\"65\" r=\"1.5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <!-- LED status -->\n  <circle cx=\"209\" cy=\"80\" r=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <circle cx=\"209\" cy=\"87\" r=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"70\" y=\"128\" text-anchor=\"middle\" font-size=\"8\" font-family=\"Arial,sans-serif\" fill=\"black\">Panel Hydra (Calrec Br.IO)</text>\n</svg>\n"}, {"tipo": "patch_panel", "nombre": "Patch Panel 16", "w": 200, "h": 70, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 70\">\n  <!-- Rack frame 1U -->\n  <rect x=\"2\" y=\"2\" width=\"196\" height=\"66\" rx=\"3\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <!-- Orejas de rack -->\n  <rect x=\"2\" y=\"10\" width=\"6\" height=\"8\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <rect x=\"192\" y=\"10\" width=\"6\" height=\"8\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <rect x=\"2\" y=\"48\" width=\"6\" height=\"8\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <rect x=\"192\" y=\"48\" width=\"6\" height=\"8\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <!-- Label -->\n  <text x=\"100\" y=\"14\" text-anchor=\"middle\" font-size=\"6\" font-family=\"Arial,sans-serif\" fill=\"black\">PATCH PANEL \u00b7 16 XLR</text>\n  <!-- Divisor IN/OUT -->\n  <line x1=\"10\" y1=\"38\" x2=\"190\" y2=\"38\" stroke=\"black\" stroke-width=\"0.5\" stroke-dasharray=\"2,2\"/>\n  <!-- Fila IN (hembra, arriba) - 8 conectores -->\n  <text x=\"8\" y=\"33\" text-anchor=\"start\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">IN</text>\n  <circle cx=\"30\" cy=\"27\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"30\" cy=\"27\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"30\" y=\"37\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">1</text>\n  <circle cx=\"50\" cy=\"27\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"50\" cy=\"27\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"50\" y=\"37\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">2</text>\n  <circle cx=\"70\" cy=\"27\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"70\" cy=\"27\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"70\" y=\"37\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">3</text>\n  <circle cx=\"90\" cy=\"27\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"90\" cy=\"27\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"90\" y=\"37\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">4</text>\n  <circle cx=\"110\" cy=\"27\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"110\" cy=\"27\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"110\" y=\"37\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">5</text>\n  <circle cx=\"130\" cy=\"27\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"130\" cy=\"27\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"130\" y=\"37\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">6</text>\n  <circle cx=\"150\" cy=\"27\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"150\" cy=\"27\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"150\" y=\"37\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">7</text>\n  <circle cx=\"170\" cy=\"27\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"170\" cy=\"27\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"170\" y=\"37\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">8</text>\n  <!-- Fila OUT (macho, abajo) - 8 conectores -->\n  <text x=\"8\" y=\"50\" text-anchor=\"start\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">OUT</text>\n  <circle cx=\"30\" cy=\"54\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"28\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"32\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"30\" cy=\"52\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"30\" y=\"64\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">9</text>\n  <circle cx=\"50\" cy=\"54\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"48\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"52\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"50\" cy=\"52\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"50\" y=\"64\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">10</text>\n  <circle cx=\"70\" cy=\"54\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"68\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"72\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"70\" cy=\"52\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"70\" y=\"64\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">11</text>\n  <circle cx=\"90\" cy=\"54\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"88\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"92\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"90\" cy=\"52\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"90\" y=\"64\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">12</text>\n  <circle cx=\"110\" cy=\"54\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"108\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"112\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"110\" cy=\"52\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"110\" y=\"64\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">13</text>\n  <circle cx=\"130\" cy=\"54\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"128\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"132\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"130\" cy=\"52\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"130\" y=\"64\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">14</text>\n  <circle cx=\"150\" cy=\"54\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"148\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"152\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"150\" cy=\"52\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"150\" y=\"64\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">15</text>\n  <circle cx=\"170\" cy=\"54\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"168\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"172\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"170\" cy=\"52\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"170\" y=\"64\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">16</text>\n</svg>\n"}, {"tipo": "caja_conexion", "nombre": "Caja de Conexi\u00f3n", "w": 100, "h": 80, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 80\">\n  <!-- Stagebox - caja de campo -->\n  <rect x=\"5\" y=\"8\" width=\"90\" height=\"54\" rx=\"4\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <!-- Bisagras / esquinas reforzadas -->\n  <rect x=\"5\" y=\"8\" width=\"8\" height=\"8\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <rect x=\"87\" y=\"8\" width=\"8\" height=\"8\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <rect x=\"5\" y=\"54\" width=\"8\" height=\"8\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <rect x=\"87\" y=\"54\" width=\"8\" height=\"8\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <!-- Panel frontal -->\n  <rect x=\"12\" y=\"14\" width=\"76\" height=\"42\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <!-- Label -->\n  <text x=\"50\" y=\"22\" text-anchor=\"middle\" font-size=\"5.5\" font-family=\"Arial,sans-serif\" fill=\"black\">CAJA CONEXI\u00d3N</text>\n  <!-- Asa superior -->\n  <path d=\"M35 8 Q35 2 50 2 Q65 2 65 8\" fill=\"none\" stroke=\"black\" stroke-width=\"2\" stroke-linecap=\"round\"/>\n  <!-- 8 XLR hembra (2 filas x 4) -->\n  <circle cx=\"24\" cy=\"34\" r=\"6\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"24\" cy=\"34\" r=\"2.5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"24\" y=\"44\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">1</text>\n  <circle cx=\"38\" cy=\"34\" r=\"6\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"38\" cy=\"34\" r=\"2.5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"38\" y=\"44\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">2</text>\n  <circle cx=\"52\" cy=\"34\" r=\"6\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"52\" cy=\"34\" r=\"2.5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"52\" y=\"44\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">3</text>\n  <circle cx=\"66\" cy=\"34\" r=\"6\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"66\" cy=\"34\" r=\"2.5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"66\" y=\"44\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">4</text>\n  <circle cx=\"80\" cy=\"34\" r=\"6\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"80\" cy=\"34\" r=\"2.5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"80\" y=\"44\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">5</text>\n  <!-- LED indicador + cable multicore salida -->\n  <circle cx=\"17\" cy=\"27\" r=\"2.5\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <!-- Cable multicore lateral -->\n  <line x1=\"95\" y1=\"35\" x2=\"100\" y2=\"35\" stroke=\"black\" stroke-width=\"3\" stroke-linecap=\"round\"/>\n  <text x=\"50\" y=\"73\" text-anchor=\"middle\" font-size=\"7\" font-family=\"Arial,sans-serif\" fill=\"black\">Caja de Conexi\u00f3n</text>\n</svg>\n"}, {"tipo": "micro_mano", "nombre": "Micro Mano", "w": 60, "h": 95, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 60 95\">\n  <!-- C\u00e1psula -->\n  <rect x=\"18\" y=\"4\" width=\"24\" height=\"38\" rx=\"12\" fill=\"white\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <!-- Grille lines -->\n  <line x1=\"20\" y1=\"12\" x2=\"42\" y2=\"12\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <line x1=\"19\" y1=\"18\" x2=\"41\" y2=\"18\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <line x1=\"19\" y1=\"24\" x2=\"41\" y2=\"24\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <line x1=\"20\" y1=\"30\" x2=\"40\" y2=\"30\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <line x1=\"22\" y1=\"36\" x2=\"38\" y2=\"36\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <!-- Cuello -->\n  <rect x=\"24\" y=\"42\" width=\"12\" height=\"5\" fill=\"white\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <!-- Mango -->\n  <rect x=\"21\" y=\"47\" width=\"18\" height=\"32\" rx=\"3\" fill=\"white\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <!-- Anillos decorativos -->\n  <line x1=\"21\" y1=\"53\" x2=\"39\" y2=\"53\" stroke=\"black\" stroke-width=\"1\"/>\n  <line x1=\"21\" y1=\"57\" x2=\"39\" y2=\"57\" stroke=\"black\" stroke-width=\"0.5\"/>\n  <line x1=\"21\" y1=\"70\" x2=\"39\" y2=\"70\" stroke=\"black\" stroke-width=\"1\"/>\n  <line x1=\"21\" y1=\"74\" x2=\"39\" y2=\"74\" stroke=\"black\" stroke-width=\"0.5\"/>\n  <!-- Conector XLR base -->\n  <rect x=\"25\" y=\"79\" width=\"10\" height=\"6\" rx=\"2\" fill=\"white\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"30\" y=\"93\" text-anchor=\"middle\" font-size=\"7\" font-family=\"Arial,sans-serif\" fill=\"black\">Micro Mano</text>\n</svg>\n"}, {"tipo": "micro_inalambrico", "nombre": "Micro Inal\u00e1mbrico", "w": 70, "h": 100, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 70 100\">\n  <!-- C\u00e1psula esf\u00e9rica -->\n  <ellipse cx=\"30\" cy=\"15\" rx=\"14\" ry=\"14\" fill=\"white\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <!-- Grille conc\u00e9ntrico -->\n  <ellipse cx=\"30\" cy=\"15\" rx=\"10\" ry=\"10\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <ellipse cx=\"30\" cy=\"15\" rx=\"5\" ry=\"5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <!-- LED -->\n  <circle cx=\"39\" cy=\"9\" r=\"2.5\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <!-- Antena -->\n  <line x1=\"40\" y1=\"12\" x2=\"60\" y2=\"2\" stroke=\"black\" stroke-width=\"1.5\" stroke-linecap=\"round\"/>\n  <circle cx=\"60\" cy=\"2\" r=\"1.5\" fill=\"black\"/>\n  <!-- Cuello -->\n  <rect x=\"25\" y=\"29\" width=\"10\" height=\"5\" fill=\"white\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <!-- Mango -->\n  <rect x=\"22\" y=\"34\" width=\"16\" height=\"28\" rx=\"3\" fill=\"white\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <!-- Bot\u00f3n ON/OFF -->\n  <rect x=\"26\" y=\"40\" width=\"8\" height=\"7\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"30\" y=\"46\" text-anchor=\"middle\" font-size=\"4.5\" font-family=\"Arial,sans-serif\" fill=\"black\">ON</text>\n  <!-- Transmisor body -->\n  <rect x=\"20\" y=\"62\" width=\"20\" height=\"15\" rx=\"3\" fill=\"white\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <!-- Display peque\u00f1o -->\n  <rect x=\"22\" y=\"64\" width=\"10\" height=\"6\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <!-- Clip -->\n  <rect x=\"40\" y=\"64\" width=\"4\" height=\"12\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"30\" y=\"96\" text-anchor=\"middle\" font-size=\"6.5\" font-family=\"Arial,sans-serif\" fill=\"black\">Micro Inal\u00e1mbrico</text>\n</svg>\n"}, {"tipo": "microcasco", "nombre": "Microcasco", "w": 110, "h": 90, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 110 90\">\n  <!-- Diadema arco -->\n  <path d=\"M18 45 Q18 8 55 8 Q92 8 92 45\" fill=\"none\" stroke=\"black\" stroke-width=\"2.5\" stroke-linecap=\"round\"/>\n  <!-- Almohadilla izquierda - exterior -->\n  <ellipse cx=\"16\" cy=\"50\" rx=\"12\" ry=\"15\" fill=\"white\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <!-- Almohadilla izquierda - driver -->\n  <ellipse cx=\"16\" cy=\"50\" rx=\"7\" ry=\"10\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <!-- Almohadilla derecha - exterior -->\n  <ellipse cx=\"94\" cy=\"50\" rx=\"12\" ry=\"15\" fill=\"white\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <!-- Almohadilla derecha - driver -->\n  <ellipse cx=\"94\" cy=\"50\" rx=\"7\" ry=\"10\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <!-- Brazo del micro (boom) -->\n  <path d=\"M8 58 Q2 70 8 78\" fill=\"none\" stroke=\"black\" stroke-width=\"2\" stroke-linecap=\"round\"/>\n  <!-- Articulaci\u00f3n brazo -->\n  <circle cx=\"8\" cy=\"58\" r=\"2.5\" fill=\"white\" stroke=\"black\" stroke-width=\"1\"/>\n  <!-- C\u00e1psula del micro -->\n  <ellipse cx=\"10\" cy=\"80\" rx=\"7\" ry=\"5\" fill=\"white\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <!-- Grille micro -->\n  <ellipse cx=\"10\" cy=\"80\" rx=\"4\" ry=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <!-- Cable de salida -->\n  <path d=\"M94 65 Q102 68 104 60\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\" stroke-linecap=\"round\"/>\n  <circle cx=\"104\" cy=\"58\" r=\"3\" fill=\"white\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"55\" y=\"88\" text-anchor=\"middle\" font-size=\"7\" font-family=\"Arial,sans-serif\" fill=\"black\">Microcasco</text>\n</svg>\n"}, {"tipo": "unidad_pinganillo", "nombre": "IEM Receptor", "w": 60, "h": 95, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 60 95\">\n  <!-- Receptor body -->\n  <rect x=\"12\" y=\"4\" width=\"36\" height=\"62\" rx=\"5\" fill=\"white\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <!-- Display LCD -->\n  <rect x=\"17\" y=\"10\" width=\"26\" height=\"16\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"30\" y=\"18\" text-anchor=\"middle\" font-size=\"5.5\" font-family=\"Arial Narrow,monospace\" fill=\"black\">-14dB</text>\n  <text x=\"30\" y=\"24\" text-anchor=\"middle\" font-size=\"4.5\" font-family=\"Arial Narrow,monospace\" fill=\"black\">CH 12</text>\n  <!-- Bot\u00f3n VOL - -->\n  <rect x=\"17\" y=\"32\" width=\"10\" height=\"8\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"22\" y=\"38\" text-anchor=\"middle\" font-size=\"9\" font-family=\"Arial,sans-serif\" fill=\"black\">\u2212</text>\n  <!-- Bot\u00f3n VOL + -->\n  <rect x=\"33\" y=\"32\" width=\"10\" height=\"8\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"38\" y=\"38\" text-anchor=\"middle\" font-size=\"8\" font-family=\"Arial,sans-serif\" fill=\"black\">+</text>\n  <!-- Bot\u00f3n canal -->\n  <circle cx=\"30\" cy=\"54\" r=\"6\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <text x=\"30\" y=\"57\" text-anchor=\"middle\" font-size=\"4.5\" font-family=\"Arial,sans-serif\" fill=\"black\">CH</text>\n  <!-- Clip -->\n  <rect x=\"48\" y=\"14\" width=\"5\" height=\"30\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <!-- Conector jack -->\n  <rect x=\"26\" y=\"66\" width=\"8\" height=\"5\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <!-- Cable y auricular IEM -->\n  <path d=\"M30 71 Q30 78 20 82 Q13 84 13 80 Q13 76 19 76\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <!-- Earpiece -->\n  <ellipse cx=\"16\" cy=\"78\" rx=\"7\" ry=\"5\" fill=\"white\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <ellipse cx=\"16\" cy=\"78\" rx=\"3.5\" ry=\"2.5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"30\" y=\"92\" text-anchor=\"middle\" font-size=\"6.5\" font-family=\"Arial,sans-serif\" fill=\"black\">IEM Receptor</text>\n</svg>\n"}, {"tipo": "iem_dual", "nombre": "Base IEM Dual", "w": 140, "h": 90, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 140 90\">\n  <!-- Unidad base - chasis rack 2U -->\n  <rect x=\"2\" y=\"5\" width=\"136\" height=\"60\" rx=\"3\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <!-- Panel frontal interior -->\n  <rect x=\"7\" y=\"10\" width=\"126\" height=\"50\" rx=\"2\" fill=\"white\" stroke=\"black\" stroke-width=\"0.8\"/>\n  \n  <!-- Pantalla LCD canal A -->\n  <rect x=\"12\" y=\"14\" width=\"36\" height=\"14\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"30\" y=\"24\" text-anchor=\"middle\" font-size=\"6\" font-family=\"Arial Narrow,Arial,monospace\" fill=\"black\">CH A -18dB</text>\n  \n  <!-- Pantalla LCD canal B -->\n  <rect x=\"52\" y=\"14\" width=\"36\" height=\"14\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"70\" y=\"24\" text-anchor=\"middle\" font-size=\"6\" font-family=\"Arial Narrow,Arial,monospace\" fill=\"black\">CH B -14dB</text>\n  \n  <!-- Encoder volumen A -->\n  <circle cx=\"26\" cy=\"40\" r=\"9\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"26\" cy=\"40\" r=\"5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <line x1=\"26\" y1=\"31\" x2=\"26\" y2=\"35\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <text x=\"26\" y=\"55\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">VOL A</text>\n  \n  <!-- Encoder volumen B -->\n  <circle cx=\"66\" cy=\"40\" r=\"9\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"66\" cy=\"40\" r=\"5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <line x1=\"66\" y1=\"31\" x2=\"66\" y2=\"35\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <text x=\"66\" y=\"55\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">VOL B</text>\n  \n  <!-- Jack salida IEM A (6.35mm) -->\n  <circle cx=\"95\" cy=\"30\" r=\"6\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"95\" cy=\"30\" r=\"2.5\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"95\" y=\"45\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">IEM A</text>\n  \n  <!-- Jack salida IEM B (6.35mm) -->\n  <circle cx=\"115\" cy=\"30\" r=\"6\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"115\" cy=\"30\" r=\"2.5\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"115\" y=\"45\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">IEM B</text>\n\n  <!-- Bot\u00f3n RF/Link -->\n  <rect x=\"92\" y=\"47\" width=\"30\" height=\"10\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"107\" y=\"55\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">RF LINK</text>\n\n  <!-- Orejas de rack -->\n  <rect x=\"2\" y=\"12\" width=\"5\" height=\"8\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <rect x=\"133\" y=\"12\" width=\"5\" height=\"8\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <rect x=\"2\" y=\"45\" width=\"5\" height=\"8\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <rect x=\"133\" y=\"45\" width=\"5\" height=\"8\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  \n  <text x=\"70\" y=\"80\" text-anchor=\"middle\" font-size=\"7.5\" font-family=\"Arial,sans-serif\" fill=\"black\">Base IEM Dual</text>\n</svg>\n"}, {"tipo": "telefono_movil", "nombre": "Tel\u00e9fono M\u00f3vil", "w": 50, "h": 85, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 50 85\">\n  <!-- Cuerpo -->\n  <rect x=\"7\" y=\"4\" width=\"36\" height=\"64\" rx=\"6\" fill=\"white\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <!-- Pantalla -->\n  <rect x=\"11\" y=\"10\" width=\"28\" height=\"46\" rx=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <!-- C\u00e1mara frontal -->\n  <circle cx=\"25\" cy=\"13\" r=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <!-- Bocina superior -->\n  <rect x=\"20\" y=\"7\" width=\"10\" height=\"2\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <!-- Onda de audio (icono) -->\n  <path d=\"M16 33 Q16 26 25 26 Q34 26 34 33 Q34 40 25 40 Q16 40 16 33\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <path d=\"M19 33 Q19 29 25 29 Q31 29 31 33 Q31 37 25 37 Q19 37 19 33\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <!-- Bot\u00f3n home -->\n  <circle cx=\"25\" cy=\"64\" r=\"4\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <!-- Botones laterales -->\n  <rect x=\"5\" y=\"24\" width=\"2\" height=\"8\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <rect x=\"43\" y=\"24\" width=\"2\" height=\"8\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <!-- Jack -->\n  <rect x=\"22\" y=\"68\" width=\"6\" height=\"4\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"25\" y=\"80\" text-anchor=\"middle\" font-size=\"7\" font-family=\"Arial,sans-serif\" fill=\"black\">Tel\u00e9fono</text>\n</svg>\n"}, {"tipo": "camara_tv", "nombre": "C\u00e1mara TV", "w": 120, "h": 100, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 120 100\">\n  <!-- Cuerpo c\u00e1mara -->\n  <rect x=\"30\" y=\"20\" width=\"60\" height=\"40\" rx=\"2\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <!-- Objetivo -->\n  <rect x=\"10\" y=\"25\" width=\"20\" height=\"30\" rx=\"2\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <line x1=\"15\" y1=\"25\" x2=\"15\" y2=\"55\" stroke=\"black\" stroke-width=\"1\"/>\n  <!-- Visor -->\n  <rect x=\"70\" y=\"10\" width=\"20\" height=\"12\" rx=\"2\" fill=\"white\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <!-- Tr\u00edpode (base) -->\n  <path d=\"M60 60 L40 90 M60 60 L80 90 M60 60 L60 90\" stroke=\"black\" stroke-width=\"2\" stroke-linecap=\"round\"/>\n  <text x=\"60\" y=\"98\" text-anchor=\"middle\" font-size=\"8\" font-family=\"Arial,sans-serif\" fill=\"black\">C\u00e1mara TV</text>\n</svg>\n"}, {"tipo": "monitor", "nombre": "Monitor", "w": 110, "h": 90, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 110 90\">\n  <!-- Pantalla -->\n  <rect x=\"10\" y=\"10\" width=\"90\" height=\"60\" rx=\"2\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <rect x=\"15\" y=\"15\" width=\"80\" height=\"50\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <!-- Soporte -->\n  <path d=\"M45 70 L65 70 L75 80 L35 80 Z\" fill=\"white\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <text x=\"55\" y=\"88\" text-anchor=\"middle\" font-size=\"8\" font-family=\"Arial,sans-serif\" fill=\"black\">Monitor</text>\n</svg>\n"}, {"tipo": "intercom", "nombre": "Intercom / Beltpack", "w": 70, "h": 90, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 70 90\">\n  <rect x=\"10\" y=\"10\" width=\"50\" height=\"70\" rx=\"5\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <!-- Botones -->\n  <circle cx=\"25\" cy=\"30\" r=\"6\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"45\" cy=\"30\" r=\"6\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <!-- Knob -->\n  <circle cx=\"35\" cy=\"60\" r=\"10\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <line x1=\"35\" y1=\"50\" x2=\"35\" y2=\"55\" stroke=\"black\" stroke-width=\"2\"/>\n  <text x=\"35\" y=\"88\" text-anchor=\"middle\" font-size=\"7\" font-family=\"Arial,sans-serif\" fill=\"black\">Intercom</text>\n</svg>\n"}, {"tipo": "mesa_sonido", "nombre": "Mesa de Sonido", "w": 250, "h": 140, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 250 140\">\n  <rect x=\"5\" y=\"5\" width=\"240\" height=\"130\" rx=\"4\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <!-- Faders -->\n  <line x1=\"20\" y1=\"40\" x2=\"20\" y2=\"110\" stroke=\"black\" stroke-width=\"1\"/>\n  <rect x=\"15\" y=\"80\" width=\"10\" height=\"15\" rx=\"1\" fill=\"white\" stroke=\"black\" stroke-width=\"1\"/>\n  <line x1=\"50\" y1=\"40\" x2=\"50\" y2=\"110\" stroke=\"black\" stroke-width=\"1\"/>\n  <rect x=\"45\" y=\"60\" width=\"10\" height=\"15\" rx=\"1\" fill=\"white\" stroke=\"black\" stroke-width=\"1\"/>\n  <line x1=\"80\" y1=\"40\" x2=\"80\" y2=\"110\" stroke=\"black\" stroke-width=\"1\"/>\n  <rect x=\"75\" y=\"90\" width=\"10\" height=\"15\" rx=\"1\" fill=\"white\" stroke=\"black\" stroke-width=\"1\"/>\n  <!-- Pantalla central -->\n  <rect x=\"110\" y=\"20\" width=\"80\" height=\"50\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <!-- Master fader -->\n  <line x1=\"220\" y1=\"40\" x2=\"220\" y2=\"110\" stroke=\"black\" stroke-width=\"2\"/>\n  <rect x=\"215\" y=\"70\" width=\"10\" height=\"20\" rx=\"1\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <text x=\"125\" y=\"132\" text-anchor=\"middle\" font-size=\"9\" font-family=\"Arial,sans-serif\" fill=\"black\">Mesa de Sonido</text>\n</svg>\n"}];
+const ELEMENTS_LIBRARY = [{"tipo": "camion_um", "nombre": "Cami\u00f3n UM", "w": 420, "h": 160, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 420 160\">\n  <!-- ======= CABINA ======= -->\n  <rect x=\"5\" y=\"45\" width=\"65\" height=\"72\" rx=\"5\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <path d=\"M10 45 Q10 28 35 26 Q60 24 70 45\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <path d=\"M14 44 Q14 32 35 30 Q56 28 66 44\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <rect x=\"12\" y=\"52\" width=\"22\" height=\"16\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <line x1=\"46\" y1=\"60\" x2=\"46\" y2=\"117\" stroke=\"black\" stroke-width=\"0.8\" stroke-dasharray=\"3,2\"/>\n  <rect x=\"50\" y=\"83\" width=\"8\" height=\"3\" rx=\"1.5\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <rect x=\"0\" y=\"54\" width=\"8\" height=\"5\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <line x1=\"5\" y1=\"57\" x2=\"12\" y2=\"57\" stroke=\"black\" stroke-width=\"1\"/>\n  <rect x=\"6\" y=\"97\" width=\"14\" height=\"8\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <rect x=\"5\" y=\"106\" width=\"18\" height=\"11\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <line x1=\"5\" y1=\"109\" x2=\"23\" y2=\"109\" stroke=\"black\" stroke-width=\"0.5\"/>\n  <line x1=\"5\" y1=\"112\" x2=\"23\" y2=\"112\" stroke=\"black\" stroke-width=\"0.5\"/>\n  <rect x=\"3\" y=\"117\" width=\"24\" height=\"5\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <!-- Eje cabina-remolque -->\n  <line x1=\"70\" y1=\"90\" x2=\"82\" y2=\"90\" stroke=\"black\" stroke-width=\"3\"/>\n\n  <!-- ======= REMOLQUE ======= -->\n  <rect x=\"80\" y=\"28\" width=\"332\" height=\"97\" rx=\"4\" fill=\"white\" stroke=\"black\" stroke-width=\"2.5\"/>\n  <!-- King pin -->\n  <rect x=\"76\" y=\"118\" width=\"14\" height=\"7\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n\n  <!-- ======= RACK ANAL\u00d3GICO (16 XLR macho, 2 filas x 8) ======= -->\n  <rect x=\"88\" y=\"36\" width=\"150\" height=\"81\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <text x=\"163\" y=\"46\" text-anchor=\"middle\" font-size=\"7\" font-family=\"Arial,sans-serif\" fill=\"black\">Anal\u00f3gico</text>\n\n  <!-- Fila 1: ch 1-8 (XLR macho: c\u00edrculo + 3 pines rellenos) -->\n  <!-- ch1 -->\n  <circle cx=\"103\" cy=\"62\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"101\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"105\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"103\" cy=\"60\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"103\" y=\"74\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">1</text>\n  <!-- ch2 -->\n  <circle cx=\"121\" cy=\"62\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"119\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"123\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"121\" cy=\"60\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"121\" y=\"74\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">2</text>\n  <!-- ch3 -->\n  <circle cx=\"139\" cy=\"62\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"137\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"141\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"139\" cy=\"60\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"139\" y=\"74\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">3</text>\n  <!-- ch4 -->\n  <circle cx=\"157\" cy=\"62\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"155\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"159\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"157\" cy=\"60\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"157\" y=\"74\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">4</text>\n  <!-- ch5 -->\n  <circle cx=\"175\" cy=\"62\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"173\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"177\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"175\" cy=\"60\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"175\" y=\"74\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">5</text>\n  <!-- ch6 -->\n  <circle cx=\"193\" cy=\"62\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"191\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"195\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"193\" cy=\"60\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"193\" y=\"74\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">6</text>\n  <!-- ch7 -->\n  <circle cx=\"211\" cy=\"62\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"209\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"213\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"211\" cy=\"60\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"211\" y=\"74\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">7</text>\n  <!-- ch8 -->\n  <circle cx=\"229\" cy=\"62\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"227\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"231\" cy=\"63\" r=\"1.4\" fill=\"black\"/><circle cx=\"229\" cy=\"60\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"229\" y=\"74\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">8</text>\n\n  <!-- Fila 2: ch 9-16 -->\n  <!-- ch9 -->\n  <circle cx=\"103\" cy=\"89\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"101\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"105\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"103\" cy=\"87\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"103\" y=\"101\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">9</text>\n  <!-- ch10 -->\n  <circle cx=\"121\" cy=\"89\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"119\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"123\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"121\" cy=\"87\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"121\" y=\"101\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">10</text>\n  <!-- ch11 -->\n  <circle cx=\"139\" cy=\"89\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"137\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"141\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"139\" cy=\"87\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"139\" y=\"101\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">11</text>\n  <!-- ch12 -->\n  <circle cx=\"157\" cy=\"89\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"155\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"159\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"157\" cy=\"87\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"157\" y=\"101\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">12</text>\n  <!-- ch13 -->\n  <circle cx=\"175\" cy=\"89\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"173\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"177\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"175\" cy=\"87\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"175\" y=\"101\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">13</text>\n  <!-- ch14 -->\n  <circle cx=\"193\" cy=\"89\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"191\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"195\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"193\" cy=\"87\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"193\" y=\"101\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">14</text>\n  <!-- ch15 -->\n  <circle cx=\"211\" cy=\"89\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"209\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"213\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"211\" cy=\"87\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"211\" y=\"101\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">15</text>\n  <!-- ch16 -->\n  <circle cx=\"229\" cy=\"89\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"227\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"231\" cy=\"90\" r=\"1.4\" fill=\"black\"/><circle cx=\"229\" cy=\"87\" r=\"1.4\" fill=\"black\"/>\n  <text x=\"229\" y=\"101\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">16</text>\n\n  <!-- ======= RACK HYDRA (9 XLR hembra, 3 filas x 3) ======= -->\n  <rect x=\"248\" y=\"36\" width=\"156\" height=\"81\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <text x=\"326\" y=\"46\" text-anchor=\"middle\" font-size=\"7\" font-family=\"Arial,sans-serif\" fill=\"black\">Hydra</text>\n\n  <!-- Fila 1: ch 1-3 (XLR hembra: c\u00edrculo doble) -->\n  <circle cx=\"272\" cy=\"60\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"272\" cy=\"60\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"272\" y=\"73\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">1</text>\n  <circle cx=\"296\" cy=\"60\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"296\" cy=\"60\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"296\" y=\"73\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">2</text>\n  <circle cx=\"320\" cy=\"60\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"320\" cy=\"60\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"320\" y=\"73\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">3</text>\n  <circle cx=\"344\" cy=\"60\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"344\" cy=\"60\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"344\" y=\"73\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">4</text>\n  <circle cx=\"368\" cy=\"60\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"368\" cy=\"60\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"368\" y=\"73\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">5</text>\n\n  <!-- Fila 2: ch 6-9 -->\n  <circle cx=\"272\" cy=\"86\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"272\" cy=\"86\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"272\" y=\"99\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">6</text>\n  <circle cx=\"296\" cy=\"86\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"296\" cy=\"86\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"296\" y=\"99\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">7</text>\n  <circle cx=\"320\" cy=\"86\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"320\" cy=\"86\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"320\" y=\"99\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">8</text>\n  <circle cx=\"344\" cy=\"86\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"344\" cy=\"86\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"344\" y=\"99\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">9</text>\n\n  <!-- ======= RUEDAS ======= -->\n  <circle cx=\"55\" cy=\"138\" r=\"14\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <circle cx=\"55\" cy=\"138\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"55\" cy=\"138\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n\n  <circle cx=\"240\" cy=\"138\" r=\"14\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <circle cx=\"240\" cy=\"138\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"240\" cy=\"138\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n\n  <circle cx=\"310\" cy=\"138\" r=\"14\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <circle cx=\"310\" cy=\"138\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"310\" cy=\"138\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n\n  <circle cx=\"348\" cy=\"138\" r=\"14\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <circle cx=\"348\" cy=\"138\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"348\" cy=\"138\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n\n  <!-- Chasis -->\n  <line x1=\"80\" y1=\"125\" x2=\"412\" y2=\"125\" stroke=\"black\" stroke-width=\"2\"/>\n\n  <!-- Etiqueta -->\n  <text x=\"246\" y=\"156\" text-anchor=\"middle\" font-size=\"8.5\" font-family=\"Arial,sans-serif\" fill=\"black\">Cami\u00f3n UM \u00b7 Unidad M\u00f3vil</text>\n</svg>\n"}, {"tipo": "panel_analogico", "nombre": "Panel Anal\u00f3gico 16", "w": 200, "h": 90, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 90\">\n  <!-- Rack frame 2U -->\n  <rect x=\"2\" y=\"2\" width=\"196\" height=\"86\" rx=\"3\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <!-- Etiqueta lateral -->\n  <rect x=\"5\" y=\"5\" width=\"16\" height=\"80\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"13\" y=\"45\" text-anchor=\"middle\" font-size=\"7\" font-family=\"Arial,sans-serif\" fill=\"black\" transform=\"rotate(-90,13,45)\">ANALOGUE</text>\n  <!-- Panel interior -->\n  <rect x=\"24\" y=\"5\" width=\"170\" height=\"80\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.5\"/>\n  \n  <!-- Label top -->\n  <text x=\"109\" y=\"15\" text-anchor=\"middle\" font-size=\"6\" font-family=\"Arial,sans-serif\" fill=\"black\">Analogue I/O \u00b7 16 canales XLR</text>\n  \n  <!-- 8 XLR hembra (entradas) fila superior, numerados 1-8 -->\n  <text x=\"35\" y=\"24\" text-anchor=\"middle\" font-size=\"4.5\" font-family=\"Arial,sans-serif\" fill=\"black\">IN</text>\n  <!-- XLR-F iconos fila 1 (c\u00edrculo + c\u00edrculo interior = hembra) -->\n  <circle cx=\"35\" cy=\"37\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"35\" cy=\"37\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"35\" y=\"50\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">1</text>\n  <circle cx=\"55\" cy=\"37\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"55\" cy=\"37\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"55\" y=\"50\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">2</text>\n  <circle cx=\"75\" cy=\"37\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"75\" cy=\"37\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"75\" y=\"50\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">3</text>\n  <circle cx=\"95\" cy=\"37\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"95\" cy=\"37\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"95\" y=\"50\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">4</text>\n  <circle cx=\"115\" cy=\"37\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"115\" cy=\"37\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"115\" y=\"50\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">5</text>\n  <circle cx=\"135\" cy=\"37\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"135\" cy=\"37\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"135\" y=\"50\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">6</text>\n  <circle cx=\"155\" cy=\"37\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"155\" cy=\"37\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"155\" y=\"50\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">7</text>\n  <circle cx=\"175\" cy=\"37\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"175\" cy=\"37\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"175\" y=\"50\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">8</text>\n\n  <!-- 8 XLR macho (salidas) fila inferior, numerados 9-16 -->\n  <text x=\"35\" y=\"57\" text-anchor=\"middle\" font-size=\"4.5\" font-family=\"Arial,sans-serif\" fill=\"black\">OUT</text>\n  <!-- XLR-M iconos fila 2 (c\u00edrculo + 3 pines triangulares = macho) -->\n  <circle cx=\"35\" cy=\"68\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"33\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"37\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"35\" cy=\"66\" r=\"1.3\" fill=\"black\"/>\n  <text x=\"35\" y=\"81\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">9</text>\n  <circle cx=\"55\" cy=\"68\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"53\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"57\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"55\" cy=\"66\" r=\"1.3\" fill=\"black\"/>\n  <text x=\"55\" y=\"81\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">10</text>\n  <circle cx=\"75\" cy=\"68\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"73\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"77\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"75\" cy=\"66\" r=\"1.3\" fill=\"black\"/>\n  <text x=\"75\" y=\"81\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">11</text>\n  <circle cx=\"95\" cy=\"68\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"93\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"97\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"95\" cy=\"66\" r=\"1.3\" fill=\"black\"/>\n  <text x=\"95\" y=\"81\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">12</text>\n  <circle cx=\"115\" cy=\"68\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"113\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"117\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"115\" cy=\"66\" r=\"1.3\" fill=\"black\"/>\n  <text x=\"115\" y=\"81\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">13</text>\n  <circle cx=\"135\" cy=\"68\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"133\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"137\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"135\" cy=\"66\" r=\"1.3\" fill=\"black\"/>\n  <text x=\"135\" y=\"81\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">14</text>\n  <circle cx=\"155\" cy=\"68\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"153\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"157\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"155\" cy=\"66\" r=\"1.3\" fill=\"black\"/>\n  <text x=\"155\" y=\"81\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">15</text>\n  <circle cx=\"175\" cy=\"68\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"173\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"177\" cy=\"69\" r=\"1.3\" fill=\"black\"/><circle cx=\"175\" cy=\"66\" r=\"1.3\" fill=\"black\"/>\n  <text x=\"175\" y=\"81\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">16</text>\n</svg>\n"}, {"tipo": "panel_hydra_brio", "nombre": "Panel Hydra Br.IO", "w": 220, "h": 130, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 220 130\">\n  <!-- Rack frame 4U estilo Calrec Br.IO -->\n  <rect x=\"2\" y=\"2\" width=\"216\" height=\"126\" rx=\"3\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <!-- Etiqueta lateral HYDRA -->\n  <rect x=\"5\" y=\"5\" width=\"18\" height=\"120\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"14\" y=\"65\" text-anchor=\"middle\" font-size=\"8\" font-family=\"Arial,sans-serif\" fill=\"black\" transform=\"rotate(-90,14,65)\">HYDRA NET</text>\n\n  <!-- === SECCI\u00d3N AES/DIGITAL izquierda === -->\n  <rect x=\"26\" y=\"5\" width=\"50\" height=\"120\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"51\" y=\"14\" text-anchor=\"middle\" font-size=\"5.5\" font-family=\"Arial,sans-serif\" fill=\"black\">AES3 / Digital</text>\n  <!-- 8 BNC (4x2) -->\n  <!-- Columna 1 -->\n  <circle cx=\"38\" cy=\"26\" r=\"5\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/><circle cx=\"38\" cy=\"26\" r=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"38\" y=\"36\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">1</text>\n  <circle cx=\"38\" cy=\"48\" r=\"5\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/><circle cx=\"38\" cy=\"48\" r=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"38\" y=\"58\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">2</text>\n  <circle cx=\"38\" cy=\"70\" r=\"5\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/><circle cx=\"38\" cy=\"70\" r=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"38\" y=\"80\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">3</text>\n  <circle cx=\"38\" cy=\"92\" r=\"5\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/><circle cx=\"38\" cy=\"92\" r=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"38\" y=\"102\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">4</text>\n  <!-- Columna 2 -->\n  <circle cx=\"60\" cy=\"26\" r=\"5\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/><circle cx=\"60\" cy=\"26\" r=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"60\" y=\"36\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">5</text>\n  <circle cx=\"60\" cy=\"48\" r=\"5\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/><circle cx=\"60\" cy=\"48\" r=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"60\" y=\"58\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">6</text>\n  <circle cx=\"60\" cy=\"70\" r=\"5\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/><circle cx=\"60\" cy=\"70\" r=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"60\" y=\"80\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">7</text>\n  <circle cx=\"60\" cy=\"92\" r=\"5\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/><circle cx=\"60\" cy=\"92\" r=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"60\" y=\"102\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">8</text>\n  <text x=\"51\" y=\"118\" text-anchor=\"middle\" font-size=\"4.5\" font-family=\"Arial,sans-serif\" fill=\"black\">BNC (AES)</text>\n\n  <!-- === SECCI\u00d3N XLR SALIDAS (macho) === -->\n  <rect x=\"78\" y=\"5\" width=\"60\" height=\"120\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"108\" y=\"14\" text-anchor=\"middle\" font-size=\"5.5\" font-family=\"Arial,sans-serif\" fill=\"black\">Line Out (XLR-M)</text>\n  <!-- XLR Macho - 3 pines interior tri\u00e1ngulo, 4x2=8 -->\n  <!-- Fila 1 -->\n  <circle cx=\"90\" cy=\"28\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"88\" cy=\"29\" r=\"1.2\" fill=\"black\"/><circle cx=\"92\" cy=\"29\" r=\"1.2\" fill=\"black\"/><circle cx=\"90\" cy=\"26\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"90\" y=\"40\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">1</text>\n  <circle cx=\"107\" cy=\"28\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"105\" cy=\"29\" r=\"1.2\" fill=\"black\"/><circle cx=\"109\" cy=\"29\" r=\"1.2\" fill=\"black\"/><circle cx=\"107\" cy=\"26\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"107\" y=\"40\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">2</text>\n  <circle cx=\"124\" cy=\"28\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"122\" cy=\"29\" r=\"1.2\" fill=\"black\"/><circle cx=\"126\" cy=\"29\" r=\"1.2\" fill=\"black\"/><circle cx=\"124\" cy=\"26\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"124\" y=\"40\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">3</text>\n  <!-- Fila 2 -->\n  <circle cx=\"90\" cy=\"54\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"88\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"92\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"90\" cy=\"52\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"90\" y=\"66\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">4</text>\n  <circle cx=\"107\" cy=\"54\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"105\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"109\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"107\" cy=\"52\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"107\" y=\"66\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">5</text>\n  <circle cx=\"124\" cy=\"54\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"122\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"126\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"124\" cy=\"52\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"124\" y=\"66\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">6</text>\n  <!-- Fila 3 -->\n  <circle cx=\"90\" cy=\"80\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"88\" cy=\"81\" r=\"1.2\" fill=\"black\"/><circle cx=\"92\" cy=\"81\" r=\"1.2\" fill=\"black\"/><circle cx=\"90\" cy=\"78\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"90\" y=\"92\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">7</text>\n  <circle cx=\"107\" cy=\"80\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"105\" cy=\"81\" r=\"1.2\" fill=\"black\"/><circle cx=\"109\" cy=\"81\" r=\"1.2\" fill=\"black\"/><circle cx=\"107\" cy=\"78\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"107\" y=\"92\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">8</text>\n  <circle cx=\"124\" cy=\"80\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"122\" cy=\"81\" r=\"1.2\" fill=\"black\"/><circle cx=\"126\" cy=\"81\" r=\"1.2\" fill=\"black\"/><circle cx=\"124\" cy=\"78\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"124\" y=\"92\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">9</text>\n  <text x=\"108\" y=\"118\" text-anchor=\"middle\" font-size=\"4.5\" font-family=\"Arial,sans-serif\" fill=\"black\">Salidas Anal\u00f3gicas</text>\n\n  <!-- === SECCI\u00d3N XLR ENTRADAS (hembra) 8ch === -->\n  <rect x=\"140\" y=\"5\" width=\"60\" height=\"120\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"170\" y=\"14\" text-anchor=\"middle\" font-size=\"5.5\" font-family=\"Arial,sans-serif\" fill=\"black\">Mic/Line In (XLR-F)</text>\n  <!-- XLR Hembra - hueco central + 3 pines -->\n  <!-- Fila 1 -->\n  <circle cx=\"152\" cy=\"28\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"152\" cy=\"28\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"152\" y=\"40\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">1</text>\n  <circle cx=\"169\" cy=\"28\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"169\" cy=\"28\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"169\" y=\"40\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">2</text>\n  <circle cx=\"186\" cy=\"28\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"186\" cy=\"28\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"186\" y=\"40\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">3</text>\n  <!-- Fila 2 -->\n  <circle cx=\"152\" cy=\"54\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"152\" cy=\"54\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"152\" y=\"66\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">4</text>\n  <circle cx=\"169\" cy=\"54\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"169\" cy=\"54\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"169\" y=\"66\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">5</text>\n  <circle cx=\"186\" cy=\"54\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"186\" cy=\"54\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"186\" y=\"66\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">6</text>\n  <!-- Fila 3 -->\n  <circle cx=\"152\" cy=\"80\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"152\" cy=\"80\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"152\" y=\"92\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">7</text>\n  <circle cx=\"169\" cy=\"80\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"169\" cy=\"80\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"169\" y=\"92\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">8</text>\n  <circle cx=\"186\" cy=\"80\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"186\" cy=\"80\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"186\" y=\"92\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">9</text>\n  <text x=\"170\" y=\"118\" text-anchor=\"middle\" font-size=\"4.5\" font-family=\"Arial,sans-serif\" fill=\"black\">Entradas Anal\u00f3gicas</text>\n\n  <!-- === Red / IP panel derecho === -->\n  <rect x=\"202\" y=\"5\" width=\"14\" height=\"120\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <!-- Puerto RJ45/etherCON -->\n  <rect x=\"204\" y=\"20\" width=\"10\" height=\"8\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <!-- Antena WiFi s\u00edmbolo -->\n  <path d=\"M209 40 Q209 35 209 32\" stroke=\"black\" stroke-width=\"1\" fill=\"none\"/>\n  <path d=\"M205 38 Q205 30 209 28 Q213 30 213 38\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <path d=\"M203 42 Q203 29 209 26 Q215 29 215 42\" fill=\"none\" stroke=\"black\" stroke-width=\"0.6\"/>\n  <!-- Conector BNC red -->\n  <circle cx=\"209\" cy=\"65\" r=\"4\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"209\" cy=\"65\" r=\"1.5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <!-- LED status -->\n  <circle cx=\"209\" cy=\"80\" r=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <circle cx=\"209\" cy=\"87\" r=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"70\" y=\"128\" text-anchor=\"middle\" font-size=\"8\" font-family=\"Arial,sans-serif\" fill=\"black\">Panel Hydra (Calrec Br.IO)</text>\n</svg>\n"}, {"tipo": "patch_panel", "nombre": "Patch Panel 16", "w": 200, "h": 70, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 70\">\n  <!-- Rack frame 1U -->\n  <rect x=\"2\" y=\"2\" width=\"196\" height=\"66\" rx=\"3\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <!-- Orejas de rack -->\n  <rect x=\"2\" y=\"10\" width=\"6\" height=\"8\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <rect x=\"192\" y=\"10\" width=\"6\" height=\"8\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <rect x=\"2\" y=\"48\" width=\"6\" height=\"8\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <rect x=\"192\" y=\"48\" width=\"6\" height=\"8\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <!-- Label -->\n  <text x=\"100\" y=\"14\" text-anchor=\"middle\" font-size=\"6\" font-family=\"Arial,sans-serif\" fill=\"black\">PATCH PANEL \u00b7 16 XLR</text>\n  <!-- Divisor IN/OUT -->\n  <line x1=\"10\" y1=\"38\" x2=\"190\" y2=\"38\" stroke=\"black\" stroke-width=\"0.5\" stroke-dasharray=\"2,2\"/>\n  <!-- Fila IN (hembra, arriba) - 8 conectores -->\n  <text x=\"8\" y=\"33\" text-anchor=\"start\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">IN</text>\n  <circle cx=\"30\" cy=\"27\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"30\" cy=\"27\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"30\" y=\"37\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">1</text>\n  <circle cx=\"50\" cy=\"27\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"50\" cy=\"27\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"50\" y=\"37\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">2</text>\n  <circle cx=\"70\" cy=\"27\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"70\" cy=\"27\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"70\" y=\"37\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">3</text>\n  <circle cx=\"90\" cy=\"27\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"90\" cy=\"27\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"90\" y=\"37\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">4</text>\n  <circle cx=\"110\" cy=\"27\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"110\" cy=\"27\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"110\" y=\"37\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">5</text>\n  <circle cx=\"130\" cy=\"27\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"130\" cy=\"27\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"130\" y=\"37\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">6</text>\n  <circle cx=\"150\" cy=\"27\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"150\" cy=\"27\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"150\" y=\"37\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">7</text>\n  <circle cx=\"170\" cy=\"27\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"170\" cy=\"27\" r=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"170\" y=\"37\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">8</text>\n  <!-- Fila OUT (macho, abajo) - 8 conectores -->\n  <text x=\"8\" y=\"50\" text-anchor=\"start\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">OUT</text>\n  <circle cx=\"30\" cy=\"54\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"28\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"32\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"30\" cy=\"52\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"30\" y=\"64\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">9</text>\n  <circle cx=\"50\" cy=\"54\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"48\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"52\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"50\" cy=\"52\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"50\" y=\"64\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">10</text>\n  <circle cx=\"70\" cy=\"54\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"68\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"72\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"70\" cy=\"52\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"70\" y=\"64\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">11</text>\n  <circle cx=\"90\" cy=\"54\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"88\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"92\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"90\" cy=\"52\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"90\" y=\"64\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">12</text>\n  <circle cx=\"110\" cy=\"54\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"108\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"112\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"110\" cy=\"52\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"110\" y=\"64\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">13</text>\n  <circle cx=\"130\" cy=\"54\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"128\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"132\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"130\" cy=\"52\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"130\" y=\"64\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">14</text>\n  <circle cx=\"150\" cy=\"54\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"148\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"152\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"150\" cy=\"52\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"150\" y=\"64\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">15</text>\n  <circle cx=\"170\" cy=\"54\" r=\"7\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"168\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"172\" cy=\"55\" r=\"1.2\" fill=\"black\"/><circle cx=\"170\" cy=\"52\" r=\"1.2\" fill=\"black\"/>\n  <text x=\"170\" y=\"64\" text-anchor=\"middle\" font-size=\"3.5\" fill=\"black\" font-family=\"Arial,sans-serif\">16</text>\n</svg>\n"}, {"tipo": "caja_conexion", "nombre": "Caja de Conexi\u00f3n", "w": 100, "h": 80, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 80\">\n  <!-- Stagebox - caja de campo -->\n  <rect x=\"5\" y=\"8\" width=\"90\" height=\"54\" rx=\"4\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <!-- Bisagras / esquinas reforzadas -->\n  <rect x=\"5\" y=\"8\" width=\"8\" height=\"8\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <rect x=\"87\" y=\"8\" width=\"8\" height=\"8\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <rect x=\"5\" y=\"54\" width=\"8\" height=\"8\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <rect x=\"87\" y=\"54\" width=\"8\" height=\"8\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <!-- Panel frontal -->\n  <rect x=\"12\" y=\"14\" width=\"76\" height=\"42\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <!-- Label -->\n  <text x=\"50\" y=\"22\" text-anchor=\"middle\" font-size=\"5.5\" font-family=\"Arial,sans-serif\" fill=\"black\">CAJA CONEXI\u00d3N</text>\n  <!-- Asa superior -->\n  <path d=\"M35 8 Q35 2 50 2 Q65 2 65 8\" fill=\"none\" stroke=\"black\" stroke-width=\"2\" stroke-linecap=\"round\"/>\n  <!-- 8 XLR hembra (2 filas x 4) -->\n  <circle cx=\"24\" cy=\"34\" r=\"6\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"24\" cy=\"34\" r=\"2.5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"24\" y=\"44\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">1</text>\n  <circle cx=\"38\" cy=\"34\" r=\"6\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"38\" cy=\"34\" r=\"2.5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"38\" y=\"44\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">2</text>\n  <circle cx=\"52\" cy=\"34\" r=\"6\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"52\" cy=\"34\" r=\"2.5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"52\" y=\"44\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">3</text>\n  <circle cx=\"66\" cy=\"34\" r=\"6\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"66\" cy=\"34\" r=\"2.5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"66\" y=\"44\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">4</text>\n  <circle cx=\"80\" cy=\"34\" r=\"6\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/><circle cx=\"80\" cy=\"34\" r=\"2.5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"80\" y=\"44\" text-anchor=\"middle\" font-size=\"4\" font-family=\"Arial,sans-serif\" fill=\"black\">5</text>\n  <!-- LED indicador + cable multicore salida -->\n  <circle cx=\"17\" cy=\"27\" r=\"2.5\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <!-- Cable multicore lateral -->\n  <line x1=\"95\" y1=\"35\" x2=\"100\" y2=\"35\" stroke=\"black\" stroke-width=\"3\" stroke-linecap=\"round\"/>\n  <text x=\"50\" y=\"73\" text-anchor=\"middle\" font-size=\"7\" font-family=\"Arial,sans-serif\" fill=\"black\">Caja de Conexi\u00f3n</text>\n</svg>\n"}, {"tipo": "micro_mano", "nombre": "Micro Mano", "w": 60, "h": 95, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 60 95\">\n  <!-- C\u00e1psula -->\n  <rect x=\"18\" y=\"4\" width=\"24\" height=\"38\" rx=\"12\" fill=\"white\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <!-- Grille lines -->\n  <line x1=\"20\" y1=\"12\" x2=\"42\" y2=\"12\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <line x1=\"19\" y1=\"18\" x2=\"41\" y2=\"18\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <line x1=\"19\" y1=\"24\" x2=\"41\" y2=\"24\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <line x1=\"20\" y1=\"30\" x2=\"40\" y2=\"30\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <line x1=\"22\" y1=\"36\" x2=\"38\" y2=\"36\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <!-- Cuello -->\n  <rect x=\"24\" y=\"42\" width=\"12\" height=\"5\" fill=\"white\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <!-- Mango -->\n  <rect x=\"21\" y=\"47\" width=\"18\" height=\"32\" rx=\"3\" fill=\"white\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <!-- Anillos decorativos -->\n  <line x1=\"21\" y1=\"53\" x2=\"39\" y2=\"53\" stroke=\"black\" stroke-width=\"1\"/>\n  <line x1=\"21\" y1=\"57\" x2=\"39\" y2=\"57\" stroke=\"black\" stroke-width=\"0.5\"/>\n  <line x1=\"21\" y1=\"70\" x2=\"39\" y2=\"70\" stroke=\"black\" stroke-width=\"1\"/>\n  <line x1=\"21\" y1=\"74\" x2=\"39\" y2=\"74\" stroke=\"black\" stroke-width=\"0.5\"/>\n  <!-- Conector XLR base -->\n  <rect x=\"25\" y=\"79\" width=\"10\" height=\"6\" rx=\"2\" fill=\"white\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"30\" y=\"93\" text-anchor=\"middle\" font-size=\"7\" font-family=\"Arial,sans-serif\" fill=\"black\">Micro Mano</text>\n</svg>\n"}, {"tipo": "micro_inalambrico", "nombre": "Micro Inal\u00e1mbrico", "w": 70, "h": 100, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 70 100\">\n  <!-- C\u00e1psula esf\u00e9rica -->\n  <ellipse cx=\"30\" cy=\"15\" rx=\"14\" ry=\"14\" fill=\"white\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <!-- Grille conc\u00e9ntrico -->\n  <ellipse cx=\"30\" cy=\"15\" rx=\"10\" ry=\"10\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <ellipse cx=\"30\" cy=\"15\" rx=\"5\" ry=\"5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <!-- LED -->\n  <circle cx=\"39\" cy=\"9\" r=\"2.5\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <!-- Antena -->\n  <line x1=\"40\" y1=\"12\" x2=\"60\" y2=\"2\" stroke=\"black\" stroke-width=\"1.5\" stroke-linecap=\"round\"/>\n  <circle cx=\"60\" cy=\"2\" r=\"1.5\" fill=\"black\"/>\n  <!-- Cuello -->\n  <rect x=\"25\" y=\"29\" width=\"10\" height=\"5\" fill=\"white\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <!-- Mango -->\n  <rect x=\"22\" y=\"34\" width=\"16\" height=\"28\" rx=\"3\" fill=\"white\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <!-- Bot\u00f3n ON/OFF -->\n  <rect x=\"26\" y=\"40\" width=\"8\" height=\"7\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"30\" y=\"46\" text-anchor=\"middle\" font-size=\"4.5\" font-family=\"Arial,sans-serif\" fill=\"black\">ON</text>\n  <!-- Transmisor body -->\n  <rect x=\"20\" y=\"62\" width=\"20\" height=\"15\" rx=\"3\" fill=\"white\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <!-- Display peque\u00f1o -->\n  <rect x=\"22\" y=\"64\" width=\"10\" height=\"6\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <!-- Clip -->\n  <rect x=\"40\" y=\"64\" width=\"4\" height=\"12\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"30\" y=\"96\" text-anchor=\"middle\" font-size=\"6.5\" font-family=\"Arial,sans-serif\" fill=\"black\">Micro Inal\u00e1mbrico</text>\n</svg>\n"}, {"tipo": "microcasco", "nombre": "Microcasco", "w": 110, "h": 90, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 110 90\">\n  <!-- Diadema arco -->\n  <path d=\"M18 45 Q18 8 55 8 Q92 8 92 45\" fill=\"none\" stroke=\"black\" stroke-width=\"2.5\" stroke-linecap=\"round\"/>\n  <!-- Almohadilla izquierda - exterior -->\n  <ellipse cx=\"16\" cy=\"50\" rx=\"12\" ry=\"15\" fill=\"white\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <!-- Almohadilla izquierda - driver -->\n  <ellipse cx=\"16\" cy=\"50\" rx=\"7\" ry=\"10\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <!-- Almohadilla derecha - exterior -->\n  <ellipse cx=\"94\" cy=\"50\" rx=\"12\" ry=\"15\" fill=\"white\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <!-- Almohadilla derecha - driver -->\n  <ellipse cx=\"94\" cy=\"50\" rx=\"7\" ry=\"10\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <!-- Brazo del micro (boom) -->\n  <path d=\"M8 58 Q2 70 8 78\" fill=\"none\" stroke=\"black\" stroke-width=\"2\" stroke-linecap=\"round\"/>\n  <!-- Articulaci\u00f3n brazo -->\n  <circle cx=\"8\" cy=\"58\" r=\"2.5\" fill=\"white\" stroke=\"black\" stroke-width=\"1\"/>\n  <!-- C\u00e1psula del micro -->\n  <ellipse cx=\"10\" cy=\"80\" rx=\"7\" ry=\"5\" fill=\"white\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <!-- Grille micro -->\n  <ellipse cx=\"10\" cy=\"80\" rx=\"4\" ry=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <!-- Cable de salida -->\n  <path d=\"M94 65 Q102 68 104 60\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\" stroke-linecap=\"round\"/>\n  <circle cx=\"104\" cy=\"58\" r=\"3\" fill=\"white\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"55\" y=\"88\" text-anchor=\"middle\" font-size=\"7\" font-family=\"Arial,sans-serif\" fill=\"black\">Microcasco</text>\n</svg>\n"}, {"tipo": "unidad_pinganillo", "nombre": "IEM Receptor", "w": 60, "h": 95, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 60 95\">\n  <!-- Receptor body -->\n  <rect x=\"12\" y=\"4\" width=\"36\" height=\"62\" rx=\"5\" fill=\"white\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <!-- Display LCD -->\n  <rect x=\"17\" y=\"10\" width=\"26\" height=\"16\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"30\" y=\"18\" text-anchor=\"middle\" font-size=\"5.5\" font-family=\"Arial Narrow,monospace\" fill=\"black\">-14dB</text>\n  <text x=\"30\" y=\"24\" text-anchor=\"middle\" font-size=\"4.5\" font-family=\"Arial Narrow,monospace\" fill=\"black\">CH 12</text>\n  <!-- Bot\u00f3n VOL - -->\n  <rect x=\"17\" y=\"32\" width=\"10\" height=\"8\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"22\" y=\"38\" text-anchor=\"middle\" font-size=\"9\" font-family=\"Arial,sans-serif\" fill=\"black\">\u2212</text>\n  <!-- Bot\u00f3n VOL + -->\n  <rect x=\"33\" y=\"32\" width=\"10\" height=\"8\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"38\" y=\"38\" text-anchor=\"middle\" font-size=\"8\" font-family=\"Arial,sans-serif\" fill=\"black\">+</text>\n  <!-- Bot\u00f3n canal -->\n  <circle cx=\"30\" cy=\"54\" r=\"6\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <text x=\"30\" y=\"57\" text-anchor=\"middle\" font-size=\"4.5\" font-family=\"Arial,sans-serif\" fill=\"black\">CH</text>\n  <!-- Clip -->\n  <rect x=\"48\" y=\"14\" width=\"5\" height=\"30\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <!-- Conector jack -->\n  <rect x=\"26\" y=\"66\" width=\"8\" height=\"5\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <!-- Cable y auricular IEM -->\n  <path d=\"M30 71 Q30 78 20 82 Q13 84 13 80 Q13 76 19 76\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <!-- Earpiece -->\n  <ellipse cx=\"16\" cy=\"78\" rx=\"7\" ry=\"5\" fill=\"white\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <ellipse cx=\"16\" cy=\"78\" rx=\"3.5\" ry=\"2.5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <text x=\"30\" y=\"92\" text-anchor=\"middle\" font-size=\"6.5\" font-family=\"Arial,sans-serif\" fill=\"black\">IEM Receptor</text>\n</svg>\n"}, {"tipo": "iem_dual", "nombre": "Pinganillo", "w": 140, "h": 90, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 140 90\">\n  <!-- Unidad base - chasis rack 2U -->\n  <rect x=\"2\" y=\"5\" width=\"136\" height=\"60\" rx=\"3\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <!-- Panel frontal interior -->\n  <rect x=\"7\" y=\"10\" width=\"126\" height=\"50\" rx=\"2\" fill=\"white\" stroke=\"black\" stroke-width=\"0.8\"/>\n  \n  <!-- Pantalla LCD canal A -->\n  <rect x=\"12\" y=\"14\" width=\"36\" height=\"14\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"30\" y=\"24\" text-anchor=\"middle\" font-size=\"6\" font-family=\"Arial Narrow,Arial,monospace\" fill=\"black\">CH A -18dB</text>\n  \n  <!-- Pantalla LCD canal B -->\n  <rect x=\"52\" y=\"14\" width=\"36\" height=\"14\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"70\" y=\"24\" text-anchor=\"middle\" font-size=\"6\" font-family=\"Arial Narrow,Arial,monospace\" fill=\"black\">CH B -14dB</text>\n  \n  <!-- Encoder volumen A -->\n  <circle cx=\"26\" cy=\"40\" r=\"9\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"26\" cy=\"40\" r=\"5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <line x1=\"26\" y1=\"31\" x2=\"26\" y2=\"35\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <text x=\"26\" y=\"55\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">VOL A</text>\n  \n  <!-- Encoder volumen B -->\n  <circle cx=\"66\" cy=\"40\" r=\"9\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"66\" cy=\"40\" r=\"5\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <line x1=\"66\" y1=\"31\" x2=\"66\" y2=\"35\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <text x=\"66\" y=\"55\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">VOL B</text>\n  \n  <!-- Jack salida IEM A (6.35mm) -->\n  <circle cx=\"95\" cy=\"30\" r=\"6\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"95\" cy=\"30\" r=\"2.5\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"95\" y=\"45\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">IEM A</text>\n  \n  <!-- Jack salida IEM B (6.35mm) -->\n  <circle cx=\"115\" cy=\"30\" r=\"6\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"115\" cy=\"30\" r=\"2.5\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"115\" y=\"45\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">IEM B</text>\n\n  <!-- Bot\u00f3n RF/Link -->\n  <rect x=\"92\" y=\"47\" width=\"30\" height=\"10\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"107\" y=\"55\" text-anchor=\"middle\" font-size=\"5\" font-family=\"Arial,sans-serif\" fill=\"black\">RF LINK</text>\n\n  <!-- Orejas de rack -->\n  <rect x=\"2\" y=\"12\" width=\"5\" height=\"8\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <rect x=\"133\" y=\"12\" width=\"5\" height=\"8\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <rect x=\"2\" y=\"45\" width=\"5\" height=\"8\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <rect x=\"133\" y=\"45\" width=\"5\" height=\"8\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  \n  <text x=\"70\" y=\"80\" text-anchor=\"middle\" font-size=\"7.5\" font-family=\"Arial,sans-serif\" fill=\"black\">Pinganillo</text>\n</svg>\n"}, {"tipo": "telefono_movil", "nombre": "Tel\u00e9fono M\u00f3vil", "w": 50, "h": 85, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 50 85\">\n  <!-- Cuerpo -->\n  <rect x=\"7\" y=\"4\" width=\"36\" height=\"64\" rx=\"6\" fill=\"white\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <!-- Pantalla -->\n  <rect x=\"11\" y=\"10\" width=\"28\" height=\"46\" rx=\"3\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <!-- C\u00e1mara frontal -->\n  <circle cx=\"25\" cy=\"13\" r=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <!-- Bocina superior -->\n  <rect x=\"20\" y=\"7\" width=\"10\" height=\"2\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <!-- Onda de audio (icono) -->\n  <path d=\"M16 33 Q16 26 25 26 Q34 26 34 33 Q34 40 25 40 Q16 40 16 33\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <path d=\"M19 33 Q19 29 25 29 Q31 29 31 33 Q31 37 25 37 Q19 37 19 33\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <!-- Bot\u00f3n home -->\n  <circle cx=\"25\" cy=\"64\" r=\"4\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <!-- Botones laterales -->\n  <rect x=\"5\" y=\"24\" width=\"2\" height=\"8\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <rect x=\"43\" y=\"24\" width=\"2\" height=\"8\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <!-- Jack -->\n  <rect x=\"22\" y=\"68\" width=\"6\" height=\"4\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <text x=\"25\" y=\"80\" text-anchor=\"middle\" font-size=\"7\" font-family=\"Arial,sans-serif\" fill=\"black\">Tel\u00e9fono</text>\n</svg>\n"}, {"tipo": "camara_tv", "nombre": "C\u00e1mara TV", "w": 120, "h": 100, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 120 100\">\n  <!-- Cuerpo c\u00e1mara -->\n  <rect x=\"30\" y=\"20\" width=\"60\" height=\"40\" rx=\"2\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <!-- Objetivo -->\n  <rect x=\"10\" y=\"25\" width=\"20\" height=\"30\" rx=\"2\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <line x1=\"15\" y1=\"25\" x2=\"15\" y2=\"55\" stroke=\"black\" stroke-width=\"1\"/>\n  <!-- Visor -->\n  <rect x=\"70\" y=\"10\" width=\"20\" height=\"12\" rx=\"2\" fill=\"white\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <!-- Tr\u00edpode (base) -->\n  <path d=\"M60 60 L40 90 M60 60 L80 90 M60 60 L60 90\" stroke=\"black\" stroke-width=\"2\" stroke-linecap=\"round\"/>\n  <text x=\"60\" y=\"98\" text-anchor=\"middle\" font-size=\"8\" font-family=\"Arial,sans-serif\" fill=\"black\">C\u00e1mara TV</text>\n</svg>\n"}, {"tipo": "monitor", "nombre": "Monitor", "w": 110, "h": 90, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 110 90\">\n  <!-- Pantalla -->\n  <rect x=\"10\" y=\"10\" width=\"90\" height=\"60\" rx=\"2\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <rect x=\"15\" y=\"15\" width=\"80\" height=\"50\" rx=\"1\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <!-- Soporte -->\n  <path d=\"M45 70 L65 70 L75 80 L35 80 Z\" fill=\"white\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <text x=\"55\" y=\"88\" text-anchor=\"middle\" font-size=\"8\" font-family=\"Arial,sans-serif\" fill=\"black\">Monitor</text>\n</svg>\n"}, {"tipo": "intercom", "nombre": "Intercom / Beltpack", "w": 70, "h": 90, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 70 90\">\n  <rect x=\"10\" y=\"10\" width=\"50\" height=\"70\" rx=\"5\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <!-- Botones -->\n  <circle cx=\"25\" cy=\"30\" r=\"6\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"45\" cy=\"30\" r=\"6\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <!-- Knob -->\n  <circle cx=\"35\" cy=\"60\" r=\"10\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <line x1=\"35\" y1=\"50\" x2=\"35\" y2=\"55\" stroke=\"black\" stroke-width=\"2\"/>\n  <text x=\"35\" y=\"88\" text-anchor=\"middle\" font-size=\"7\" font-family=\"Arial,sans-serif\" fill=\"black\">Intercom</text>\n</svg>\n"}, {"tipo": "mesa_sonido", "nombre": "Mesa de Sonido", "w": 250, "h": 140, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 250 140\">\n  <rect x=\"5\" y=\"5\" width=\"240\" height=\"130\" rx=\"4\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <!-- Faders -->\n  <line x1=\"20\" y1=\"40\" x2=\"20\" y2=\"110\" stroke=\"black\" stroke-width=\"1\"/>\n  <rect x=\"15\" y=\"80\" width=\"10\" height=\"15\" rx=\"1\" fill=\"white\" stroke=\"black\" stroke-width=\"1\"/>\n  <line x1=\"50\" y1=\"40\" x2=\"50\" y2=\"110\" stroke=\"black\" stroke-width=\"1\"/>\n  <rect x=\"45\" y=\"60\" width=\"10\" height=\"15\" rx=\"1\" fill=\"white\" stroke=\"black\" stroke-width=\"1\"/>\n  <line x1=\"80\" y1=\"40\" x2=\"80\" y2=\"110\" stroke=\"black\" stroke-width=\"1\"/>\n  <rect x=\"75\" y=\"90\" width=\"10\" height=\"15\" rx=\"1\" fill=\"white\" stroke=\"black\" stroke-width=\"1\"/>\n  <!-- Pantalla central -->\n  <rect x=\"110\" y=\"20\" width=\"80\" height=\"50\" rx=\"2\" fill=\"none\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <!-- Master fader -->\n  <line x1=\"220\" y1=\"40\" x2=\"220\" y2=\"110\" stroke=\"black\" stroke-width=\"2\"/>\n  <rect x=\"215\" y=\"70\" width=\"10\" height=\"20\" rx=\"1\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <text x=\"125\" y=\"132\" text-anchor=\"middle\" font-size=\"9\" font-family=\"Arial,sans-serif\" fill=\"black\">Mesa de Sonido</text>\n</svg>\n"}, {"tipo": "cascos_simples", "nombre": "Cascos Monitor", "w": 110, "h": 80, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 110 80\">\n  <path d=\"M18 42 Q18 8 55 8 Q92 8 92 42\" fill=\"none\" stroke=\"black\" stroke-width=\"2.5\" stroke-linecap=\"round\"/>\n  <ellipse cx=\"16\" cy=\"50\" rx=\"12\" ry=\"15\" fill=\"white\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <ellipse cx=\"16\" cy=\"50\" rx=\"7\" ry=\"10\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <ellipse cx=\"94\" cy=\"50\" rx=\"12\" ry=\"15\" fill=\"white\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <ellipse cx=\"94\" cy=\"50\" rx=\"7\" ry=\"10\" fill=\"none\" stroke=\"black\" stroke-width=\"1\"/>\n  <line x1=\"55\" y1=\"65\" x2=\"55\" y2=\"75\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"55\" cy=\"75\" r=\"3.5\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n</svg>"}, {"tipo": "camara_eng", "nombre": "C\u00e1mara ENG Enlace", "w": 120, "h": 90, "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 120 90\">\n  <rect x=\"8\" y=\"28\" width=\"72\" height=\"42\" rx=\"4\" fill=\"white\" stroke=\"black\" stroke-width=\"2\"/>\n  <rect x=\"0\" y=\"36\" width=\"14\" height=\"26\" rx=\"2\" fill=\"white\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <circle cx=\"7\" cy=\"49\" r=\"8\" fill=\"none\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <circle cx=\"7\" cy=\"49\" r=\"4\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <rect x=\"80\" y=\"30\" width=\"18\" height=\"14\" rx=\"2\" fill=\"white\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <line x1=\"80\" y1=\"37\" x2=\"98\" y2=\"37\" stroke=\"black\" stroke-width=\"0.5\"/>\n  <rect x=\"20\" y=\"70\" width=\"50\" height=\"10\" rx=\"3\" fill=\"white\" stroke=\"black\" stroke-width=\"1.2\"/>\n  <ellipse cx=\"55\" cy=\"20\" rx=\"18\" ry=\"7\" fill=\"white\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <ellipse cx=\"55\" cy=\"19\" rx=\"11\" ry=\"4\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\"/>\n  <line x1=\"55\" y1=\"27\" x2=\"55\" y2=\"36\" stroke=\"black\" stroke-width=\"1.5\"/>\n  <path d=\"M36 12 Q45 6 55 12\" fill=\"none\" stroke=\"black\" stroke-width=\"1\" stroke-dasharray=\"2,2\"/>\n  <path d=\"M30 7 Q42 0 55 7\" fill=\"none\" stroke=\"black\" stroke-width=\"0.8\" stroke-dasharray=\"2,2\"/>\n</svg>"}];
 
 const CABLE_TYPES = {
-  cable_triax: { nombre: "Triax de Cámara", canales_max: 2,  color: "#444444", grosor: 3.5, doble: false },
-  manguera_8:  { nombre: "Manguera de 8",       canales_max: 8,  color: "#cc3300", grosor: 4, doble: true  },
-  manguera_16: { nombre: "Manguera de 16",      canales_max: 16, color: "#0066cc", grosor: 5, doble: true  },
-  cable_red:   { nombre: "Cable de red (RJ45)", canales_max: 16, color: "#228b22", grosor: 3, doble: false }
+  cable_triax: { nombre: "Triax de Cámara",       canales_max: 2,  color: "#444444", grosor: 3.5, doble: false, categoria: "video"    },
+  manguera_8:  { nombre: "Manguera Analógica 8",  canales_max: 8,  color: "#cc3300", grosor: 4,   doble: true,  categoria: "analogico" },
+  manguera_16: { nombre: "Manguera Analógica 16", canales_max: 16, color: "#0066cc", grosor: 5,   doble: true,  categoria: "analogico" },
+  cable_xlr:   { nombre: "Cable XLR Audio",        canales_max: 2,  color: "#111111", grosor: 2,   doble: false, categoria: "analogico" },
+  cable_red:   { nombre: "Cable Red / Fibra",      canales_max: 16, color: "#228b22", grosor: 3,   doble: false, categoria: "digital"   },
 };
 
+// Reglas implícitas de cada tipo de elemento
+const ELEMENT_RULES = {
+  camion_um:         { patch_analog: true,  patch_digital: true  },
+  panel_hydra_brio:  { force: 'cable_red'                        },
+  panel_analogico:   { analog_only: true                         },
+  patch_panel:       { analog_only: true                         },
+  caja_conexion:     { analog_only: true                         },
+  camara_tv:         { force: 'cable_triax'                      },
+  micro_mano:        { force: 'cable_xlr'                        },
+  micro_inalambrico: { force: 'cable_xlr'                        },
+  microcasco:        { force: 'cable_xlr',  multi: ['Micro','IEM'] },
+  unidad_pinganillo: { force: 'cable_xlr'                        },
+  iem_dual:          { force: 'cable_xlr',  dual: ['IEM-A','IEM-B'] },
+  telefono_movil:    { force: 'cable_xlr'                        },
+  intercom:          { force: 'cable_xlr'                        },
+  monitor:           { force: 'cable_xlr'                        },
+  mesa_sonido:       { analog_only: true                         },
+  cascos_simples:    { force: 'cable_xlr'                        },
+  camara_eng:        { no_connect: true                          },
+};
+
+// Signal direction for XLR arrow: element types that output signal
+const SIGNAL_OUT = new Set(['micro_mano', 'micro_inalambrico', 'telefono_movil']);
+// Element types that receive signal (sink)
+const SIGNAL_IN  = new Set(['unidad_pinganillo', 'iem_dual', 'monitor', 'cascos_simples']);
+
+function inferArrowEnd(srcTipo, tgtTipo) {
+  if (SIGNAL_OUT.has(srcTipo) || SIGNAL_IN.has(tgtTipo))  return 'target';
+  if (SIGNAL_OUT.has(tgtTipo) || SIGNAL_IN.has(srcTipo))  return 'source';
+  return null;
+}
+
+function inferCableType(srcTipo, tgtTipo) {
+  const sr = ELEMENT_RULES[srcTipo] || {};
+  const tr = ELEMENT_RULES[tgtTipo] || {};
+  if (sr.force) return sr.force;
+  if (tr.force) return tr.force;
+  if (sr.analog_only || tr.analog_only) return 'manguera_8';
+  return 'manguera_8';
+}
+
 let state = {
-  projectId: Date.now().toString(),
   elements: [],
   connections: [],
   notes: [],
-  zones: [],
+  customLibrary: [],
   selectedId: null,
   selectedType: null,
   tool: 'select',
   zoom: 1,
   pendingConnection: null,
   nextId: 1,
+  history: [],
+  historyIndex: -1,
   aiProvider: localStorage.getItem('umtve_ai_provider') || 'anthropic',
   apiKey: localStorage.getItem('umtve_api_key') || '',
   geminiKey: localStorage.getItem('umtve_gemini_key') || ''
@@ -415,8 +447,6 @@ const DESCRIBE_EXAMPLES = {
   simple: "Setup mínimo: un comentarista con microcasco, caja de conexión y camión UM."
 };
 
-let history = [];
-let historyIndex = -1;
 let lastMousePos = { x: 0, y: 0 };
 
 function migrateConnection(conn) {
@@ -436,161 +466,97 @@ function migrateConnection(conn) {
   };
 }
 
-function pushHistory() {
-  history = history.slice(0, historyIndex + 1);
-  history.push(structuredClone({
-    elements: state.elements,
-    connections: state.connections,
-    notes: state.notes,
-    zones: state.zones,
-    title: document.getElementById('diagram-title')?.value || ''
-  }));
-  if (history.length > 30) history.shift();
-  historyIndex = history.length - 1;
-  updateUndoRedoButtons();
-  autoSave();
-}
-
 let autoSaveTimeout = null;
 function autoSave() {
   clearTimeout(autoSaveTimeout);
   autoSaveTimeout = setTimeout(() => {
     const data = {
-      projectId: state.projectId,
-      titulo: document.getElementById('diagram-title').value,
+      titulo: document.getElementById('diagram-title')?.value || '',
       elementos: state.elements,
       conexiones: state.connections,
       notas: state.notes,
-      zonas: state.zones,
+      customLibrary: state.customLibrary,
+      nextId: state.nextId,
       timestamp: Date.now()
     };
-    localStorage.setItem('umtve_draft', JSON.stringify(data));
+    localStorage.setItem('umtve_autosave', JSON.stringify(data));
+    updateRecoverBtn();
   }, 1000);
 }
 
-function saveCurrentToProjects() {
-  const data = {
-    projectId: state.projectId,
-    titulo: document.getElementById('diagram-title').value || 'Diagrama sin título',
-    elementos: state.elements,
-    conexiones: state.connections,
-    notas: state.notes,
-    zonas: state.zones,
-    timestamp: Date.now()
-  };
-  localStorage.setItem('umtve_project_' + state.projectId, JSON.stringify(data));
-  
-  let index = JSON.parse(localStorage.getItem('umtve_projects_index') || '[]');
-  const existing = index.find(p => p.id === state.projectId);
-  if (existing) {
-    existing.titulo = data.titulo;
-    existing.timestamp = data.timestamp;
-  } else {
-    index.push({ id: state.projectId, titulo: data.titulo, timestamp: data.timestamp });
-  }
-  localStorage.setItem('umtve_projects_index', JSON.stringify(index));
-}
-
-function newProject() {
-  if (confirm('¿Quieres guardar el proyecto actual en la memoria interna antes de crear uno nuevo?')) {
-    saveCurrentToProjects();
-  }
-  state.projectId = Date.now().toString();
-  loadTemplate('vacio');
-  localStorage.removeItem('umtve_draft');
-}
-
-function openProjectsModal() {
-  saveCurrentToProjects(); // Auto-save current before opening
-  const index = JSON.parse(localStorage.getItem('umtve_projects_index') || '[]');
-  index.sort((a, b) => b.timestamp - a.timestamp);
-  
-  const container = document.getElementById('projects-list-container');
-  container.innerHTML = '';
-  
-  if (index.length === 0) {
-    container.innerHTML = '<p style="padding:15px;color:#888;">No hay proyectos guardados.</p>';
-  } else {
-    index.forEach(p => {
-      const dateStr = new Date(p.timestamp).toLocaleString();
-      const div = document.createElement('div');
-      div.className = 'project-item';
-      div.innerHTML = `
-        <div class="project-info">
-          <div class="project-title">${p.titulo}</div>
-          <div class="project-date">${dateStr}</div>
-        </div>
-        <div class="project-actions">
-          <button class="btn primary" onclick="loadProject('${p.id}')">Cargar</button>
-          <button class="btn danger" onclick="deleteProject('${p.id}')">Borrar</button>
-        </div>
-      `;
-      container.appendChild(div);
-    });
-  }
-  document.getElementById('projects-modal').classList.add('show');
-}
-
-function closeProjectsModal() {
-  document.getElementById('projects-modal').classList.remove('show');
-}
-
-function loadProject(id) {
-  const dataStr = localStorage.getItem('umtve_project_' + id);
-  if (dataStr) {
-    try {
-      const data = JSON.parse(dataStr);
-      loadProjectData(data);
-      state.projectId = id;
-      closeProjectsModal();
-      setStatus('Proyecto cargado desde la memoria interna');
-    } catch (e) { alert('Error al cargar proyecto: ' + e.message); }
+function loadAutoSave() {
+  try {
+    const raw = localStorage.getItem('umtve_autosave');
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    if (!data || !Array.isArray(data.elementos)) return false;
+    state.elements = data.elementos;
+    state.connections = (data.conexiones || []).map(migrateConnection);
+    state.notes = data.notas || [];
+    state.customLibrary = data.customLibrary || [];
+    state.nextId = data.nextId || (Math.max(0, ...state.elements.map(e => e.id), ...state.connections.map(c => c.id)) + 1);
+    const titleEl = document.getElementById('diagram-title');
+    if (titleEl && data.titulo) titleEl.value = data.titulo;
+    return true;
+  } catch (e) {
+    return false;
   }
 }
 
-function deleteProject(id) {
-  if (!confirm('¿Seguro que quieres borrar este proyecto de la memoria interna?')) return;
-  localStorage.removeItem('umtve_project_' + id);
-  let index = JSON.parse(localStorage.getItem('umtve_projects_index') || '[]');
-  index = index.filter(p => p.id !== id);
-  localStorage.setItem('umtve_projects_index', JSON.stringify(index));
-  openProjectsModal();
+function updateRecoverBtn() {
+  const btn = document.getElementById('btn-recover');
+  if (!btn) return;
+  try {
+    const raw = localStorage.getItem('umtve_autosave');
+    if (!raw) { btn.style.display = 'none'; return; }
+    const ts = JSON.parse(raw).timestamp;
+    const when = ts ? new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+    btn.textContent = when ? `Recuperar sesión (${when})` : 'Recuperar sesión';
+    btn.style.display = '';
+  } catch(e) { btn.style.display = 'none'; }
 }
 
-function loadProjectData(data) {
+function recoverSession() {
+  const raw = localStorage.getItem('umtve_autosave');
+  if (!raw) { setStatus('No hay sesión guardada para recuperar'); return; }
+  const ts = JSON.parse(raw).timestamp;
+  const when = ts ? new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '?';
+  if (!loadAutoSave()) { setStatus('Error al recuperar la sesión'); return; }
+  buildElementList();
   pushHistory();
-  document.getElementById('diagram-title').value = data.titulo || 'Diagrama';
-  state.elements = data.elementos || [];
-  state.connections = (data.conexiones || []).map(migrateConnection);
-  state.notes = data.notas || [];
-  state.zones = data.zonas || data.zones || [];
-  const maxId = Math.max(0, 
-    ...state.elements.map(e=>e.id), 
-    ...state.connections.map(c=>c.id), 
-    ...state.notes.map(n=>n.id),
-    ...state.zones.map(z=>z.id)
-  );
-  state.nextId = maxId + 1;
   renderAll();
+  setStatus(`Sesión recuperada (guardada a las ${when})`);
+}
+
+function pushHistory() {
+  state.history = state.history.slice(0, state.historyIndex + 1);
+  state.history.push(structuredClone({
+    elements: state.elements,
+    connections: state.connections,
+    notes: state.notes,
+    title: document.getElementById('diagram-title')?.value || ''
+  }));
+  if (state.history.length > 30) state.history.shift();
+  state.historyIndex = state.history.length - 1;
+  updateUndoRedoButtons();
 }
 
 function undo() {
-  if (historyIndex <= 0) return;
-  historyIndex--;
-  restoreSnapshot(history[historyIndex]);
+  if (state.historyIndex <= 0) return;
+  state.historyIndex--;
+  restoreSnapshot(state.history[state.historyIndex]);
 }
 
 function redo() {
-  if (historyIndex >= history.length - 1) return;
-  historyIndex++;
-  restoreSnapshot(history[historyIndex]);
+  if (state.historyIndex >= state.history.length - 1) return;
+  state.historyIndex++;
+  restoreSnapshot(state.history[state.historyIndex]);
 }
 
 function restoreSnapshot(snap) {
   state.elements = structuredClone(snap.elements);
   state.connections = structuredClone(snap.connections);
   state.notes = structuredClone(snap.notes || []);
-  state.zones = structuredClone(snap.zones || []);
   const titleEl = document.getElementById('diagram-title');
   if (titleEl) titleEl.value = snap.title || '';
   state.selectedId = null;
@@ -606,8 +572,8 @@ function restoreSnapshot(snap) {
 function updateUndoRedoButtons() {
   const u = document.getElementById('btn-undo');
   const r = document.getElementById('btn-redo');
-  if (u) u.disabled = historyIndex <= 0;
-  if (r) r.disabled = historyIndex >= history.length - 1;
+  if (u) u.disabled = state.historyIndex <= 0;
+  if (r) r.disabled = state.historyIndex >= state.history.length - 1;
 }
 
 function clearOverlay() {
@@ -648,71 +614,14 @@ function drawConnectOverlay() {
   overlay.appendChild(txt);
 }
 
-let zoneDrawData = null;
-function handleCanvasMouseDown(e) {
-  if (state.tool === 'zone' && (e.target.id === 'canvas' || e.target.classList.contains('canvas-bg'))) {
-    const rect = document.getElementById('canvas').getBoundingClientRect();
-    const x = Math.round((e.clientX - rect.left) / state.zoom);
-    const y = Math.round((e.clientY - rect.top) / state.zoom);
-    zoneDrawData = { startX: x, startY: y };
-    
-    const overlay = document.getElementById('overlay');
-    const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    r.setAttribute('id', 'temp-zone');
-    r.setAttribute('class', 'zone-rect');
-    r.setAttribute('x', x);
-    r.setAttribute('y', y);
-    r.setAttribute('width', 0);
-    r.setAttribute('height', 0);
-    overlay.appendChild(r);
-  }
-}
-
 function handleCanvasMouseMove(e) {
   const rect = document.getElementById('canvas').getBoundingClientRect();
   lastMousePos.x = (e.clientX - rect.left) / state.zoom;
   lastMousePos.y = (e.clientY - rect.top) / state.zoom;
-  
-  if (state.tool === 'zone' && zoneDrawData) {
-    const curX = lastMousePos.x;
-    const curY = lastMousePos.y;
-    const x = Math.min(zoneDrawData.startX, curX);
-    const y = Math.min(zoneDrawData.startY, curY);
-    const w = Math.abs(curX - zoneDrawData.startX);
-    const h = Math.abs(curY - zoneDrawData.startY);
-    
-    const r = document.getElementById('temp-zone');
-    if (r) {
-      r.setAttribute('x', x); r.setAttribute('y', y);
-      r.setAttribute('width', w); r.setAttribute('height', h);
-    }
-  } else if (state.tool === 'connect') {
+  if (state.tool === 'connect') {
     drawConnectOverlay();
   } else {
     clearOverlay();
-  }
-}
-
-function handleCanvasMouseUp(e) {
-  if (state.tool === 'zone' && zoneDrawData) {
-    const curX = lastMousePos.x;
-    const curY = lastMousePos.y;
-    const x = Math.round(Math.min(zoneDrawData.startX, curX));
-    const y = Math.round(Math.min(zoneDrawData.startY, curY));
-    const w = Math.round(Math.abs(curX - zoneDrawData.startX));
-    const h = Math.round(Math.abs(curY - zoneDrawData.startY));
-    
-    const overlay = document.getElementById('overlay');
-    const r = document.getElementById('temp-zone');
-    if (r) r.remove();
-    
-    if (w > 20 && h > 20) {
-      pushHistory();
-      state.zones.push({ id: state.nextId++, x, y, w, h, label: 'Nuevo Recuadro' });
-      setTool('select');
-      renderAll();
-    }
-    zoneDrawData = null;
   }
 }
 
@@ -721,33 +630,32 @@ function init() {
   setupTextInput();
   drawGrid();
   updateApiStatus();
-  
-  const draftStr = localStorage.getItem('umtve_draft');
-  if (draftStr) {
-    if (confirm('Tienes un proyecto de la sesión anterior. ¿Deseas recuperarlo?\n\n(Si pulsas Cancelar, se abrirá un lienzo en blanco).')) {
-      try {
-        const data = JSON.parse(draftStr);
-        loadProjectData(data);
-        if (data.projectId) state.projectId = data.projectId;
-        setStatus('Borrador recuperado');
-      } catch (e) { loadTemplate('vacio'); }
-    } else {
-      loadTemplate('vacio');
-    }
-  } else {
-    loadTemplate('vacio');
-  }
-  
-  document.getElementById('canvas').addEventListener('mousedown', handleCanvasMouseDown);
-  document.getElementById('canvas').addEventListener('mousemove', handleCanvasMouseMove);
-  document.getElementById('canvas').addEventListener('mouseup', handleCanvasMouseUp);
+  loadTemplate('vacio');
+  updateRecoverBtn();
   document.getElementById('canvas').addEventListener('click', handleCanvasClick);
+  document.getElementById('canvas').addEventListener('mousemove', handleCanvasMouseMove);
   document.addEventListener('keydown', handleKeyDown);
+  // Canvas drop — registered once here, never inside buildElementList
+  const cc = document.getElementById('canvas-container');
+  cc.addEventListener('dragover', (e) => e.preventDefault());
+  cc.addEventListener('dragenter', (e) => e.preventDefault());
+  cc.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const tipo = e.dataTransfer.getData('text/plain');
+    if (!tipo) return;
+    const rect = document.getElementById('canvas').getBoundingClientRect();
+    const x = (e.clientX - rect.left) / state.zoom - 50;
+    const y = (e.clientY - rect.top) / state.zoom - 50;
+    pushHistory();
+    addElement(tipo, x, y);
+  });
 }
 
 function buildElementList() {
   const list = document.getElementById('element-list');
-  ELEMENTS_LIBRARY.forEach(el => {
+  list.innerHTML = '';
+  const allLib = ELEMENTS_LIBRARY.concat(state.customLibrary || []);
+  allLib.forEach(el => {
     const div = document.createElement('div');
     div.className = 'element-item';
     div.draggable = true;
@@ -760,18 +668,6 @@ function buildElementList() {
       e.dataTransfer.setData('text/plain', el.tipo);
     });
     list.appendChild(div);
-  });
-  
-  const canvas = document.getElementById('canvas-container');
-  canvas.addEventListener('dragover', (e) => e.preventDefault());
-  canvas.addEventListener('drop', (e) => {
-    e.preventDefault();
-    const tipo = e.dataTransfer.getData('text/plain');
-    const rect = document.getElementById('canvas').getBoundingClientRect();
-    const x = (e.clientX - rect.left) / state.zoom - 50;
-    const y = (e.clientY - rect.top) / state.zoom - 50;
-    pushHistory();
-    addElement(tipo, x, y);
   });
 }
 
@@ -795,7 +691,8 @@ function drawGrid() {
 }
 
 function addElement(tipo, x, y, label) {
-  const meta = ELEMENTS_LIBRARY.find(e => e.tipo === tipo);
+  const allLib = ELEMENTS_LIBRARY.concat(state.customLibrary || []);
+  const meta = allLib.find(e => e.tipo === tipo);
   if (!meta) return;
   const id = state.nextId++;
   const el = {
@@ -809,43 +706,11 @@ function addElement(tipo, x, y, label) {
 }
 
 function renderAll() {
-  renderZones();
   renderElements();
   renderConnections();
   renderNotes();
   updateCounts();
-}
-
-function renderZones() {
-  const zg = document.getElementById('zones');
-  if (!zg) return;
-  zg.innerHTML = '';
-  
-  state.zones.forEach(zone => {
-    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    let nodeClass = 'zone-node';
-    if (state.selectedId === zone.id && state.selectedType === 'zone') nodeClass += ' selected';
-    group.setAttribute('class', nodeClass);
-    group.dataset.id = zone.id;
-    
-    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    rect.setAttribute('class', 'zone-rect');
-    rect.setAttribute('x', zone.x);
-    rect.setAttribute('y', zone.y);
-    rect.setAttribute('width', zone.w);
-    rect.setAttribute('height', zone.h);
-    group.appendChild(rect);
-    
-    const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    txt.setAttribute('class', 'zone-text');
-    txt.setAttribute('x', zone.x + 10);
-    txt.setAttribute('y', zone.y + 20);
-    txt.textContent = zone.label;
-    group.appendChild(txt);
-    
-    group.addEventListener('click', (e) => { e.stopPropagation(); selectZone(zone.id); });
-    zg.appendChild(group);
-  });
+  autoSave();
 }
 
 function renderElements() {
@@ -853,8 +718,9 @@ function renderElements() {
   const lg = document.getElementById('labels');
   g.innerHTML = ''; lg.innerHTML = '';
   
+  const allLib = ELEMENTS_LIBRARY.concat(state.customLibrary || []);
   state.elements.forEach(el => {
-    const meta = ELEMENTS_LIBRARY.find(m => m.tipo === el.tipo);
+    const meta = allLib.find(m => m.tipo === el.tipo);
     if (!meta) return;
     
     const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -915,21 +781,51 @@ function renderElements() {
     });
 
     g.appendChild(group);
-    
-    // Label debajo
-    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    label.setAttribute('class', 'element-label');
-    label.setAttribute('x', el.x + el.w/2);
-    label.setAttribute('y', el.y + el.h + 14);
-    label.setAttribute('text-anchor', 'middle');
-    label.textContent = el.label;
-    lg.appendChild(label);
   });
 }
 
 function renderConnections() {
   const g = document.getElementById('connections');
   g.innerHTML = '';
+  document.getElementById('conn-labels').innerHTML = '';
+
+  // Pre-compute face-port index: for each (elementId, face), list of connIdxs touching it.
+  // Camión UM uses fixed truckPoints, excluded here.
+  const facePortIndex = {};
+  state.connections.forEach((conn, idx) => {
+    const src = state.elements.find(e => e.id === conn.de);
+    const tgt = state.elements.find(e => e.id === conn.a);
+    if (!src || !tgt) return;
+    if (src.tipo !== 'camion_um') {
+      const k = `${src.id}-${getFaceDir(src, tgt.x + tgt.w/2, tgt.y + tgt.h/2)}`;
+      (facePortIndex[k] = facePortIndex[k] || []).push(idx);
+    }
+    if (tgt.tipo !== 'camion_um') {
+      const k = `${tgt.id}-${getFaceDir(tgt, src.x + src.w/2, src.y + src.h/2)}`;
+      (facePortIndex[k] = facePortIndex[k] || []).push(idx);
+    }
+  });
+
+  // Returns a distributed anchor point on the element face, spread across available space.
+  // isXlr: use cardinal face center; otherwise use edgePoint intersection.
+  function portedPoint(el, connIdx, tx, ty, isXlr) {
+    const face = getFaceDir(el, tx, ty);
+    const k = `${el.id}-${face}`;
+    const list = facePortIndex[k] || [connIdx];
+    const n = list.length;
+    const i = Math.max(0, list.indexOf(connIdx));
+    const MARGIN = 0.18;
+    const t = n === 1 ? 0.5 : MARGIN + (1 - 2 * MARGIN) * i / (n - 1);
+    const isHoriz = face === 'left' || face === 'right';
+    if (isXlr) {
+      if (isHoriz) return { x: face === 'right' ? el.x + el.w : el.x, y: el.y + t * el.h, horiz: true  };
+      return              { x: el.x + t * el.w, y: face === 'bottom' ? el.y + el.h : el.y,  horiz: false };
+    } else {
+      const base = edgePoint(el, tx, ty);
+      if (isHoriz) return { x: base.x, y: el.y + t * el.h };
+      return              { x: el.x + t * el.w, y: base.y  };
+    }
+  }
 
   function makePath(d, color, grosor, opacity) {
     const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -943,7 +839,15 @@ function renderConnections() {
     return p;
   }
 
-  state.connections.forEach(conn => {
+  // Pre-compute parallel groups: connections sharing the same endpoint pair get staggered midY offsets
+  const pairGroups = {};
+  state.connections.forEach((conn, idx) => {
+    const key = [Math.min(conn.de, conn.a), Math.max(conn.de, conn.a)].join('-');
+    if (!pairGroups[key]) pairGroups[key] = [];
+    pairGroups[key].push(idx);
+  });
+
+  state.connections.forEach((conn, connIdx) => {
     const src = state.elements.find(e => e.id === conn.de);
     const tgt = state.elements.find(e => e.id === conn.a);
     if (!src || !tgt) return;
@@ -955,11 +859,62 @@ function renderConnections() {
 
     const x1 = src.x + src.w/2, y1 = src.y + src.h/2;
     const x2 = tgt.x + tgt.w/2, y2 = tgt.y + tgt.h/2;
-    
-    let sp = src.tipo === 'camion_um' ? truckPoint(src, x2, y2, conn.tipo) : edgePoint(src, x2, y2);
-    let tp = tgt.tipo === 'camion_um' ? truckPoint(tgt, x1, y1, conn.tipo) : edgePoint(tgt, x1, y1);
-    const midY = (sp.y + tp.y) / 2;
-    const dCenter = `M ${sp.x} ${sp.y} L ${sp.x} ${midY} L ${tp.x} ${midY} L ${tp.x} ${tp.y}`;
+
+    const pairKey = [Math.min(conn.de, conn.a), Math.max(conn.de, conn.a)].join('-');
+    const group = pairGroups[pairKey];
+    const gIdx = group.indexOf(connIdx);
+    const gCount = group.length;
+    const PARALLEL_STEP = 9;
+    const parallelOff = gCount > 1 ? gIdx * PARALLEL_STEP - ((gCount - 1) * PARALLEL_STEP) / 2 : 0;
+
+    // sp/tp: anchor points distribuidos en la cara del elemento (scope externo, usados por ct.doble y etiquetas)
+    let sp = src.tipo === 'camion_um' ? truckPoint(src, x2, y2, conn.tipo) : portedPoint(src, connIdx, x2, y2, false);
+    let tp = tgt.tipo === 'camion_um' ? truckPoint(tgt, x1, y1, conn.tipo) : portedPoint(tgt, connIdx, x1, y1, false);
+
+    let dCenter, dPath;
+
+    if (conn.tipo === 'cable_xlr') {
+      // XLR: salida perpendicular + anchor distribuido en la cara
+      let spc = src.tipo === 'camion_um' ? truckPoint(src, x2, y2, conn.tipo) : portedPoint(src, connIdx, x2, y2, true);
+      let tpc = tgt.tipo === 'camion_um' ? truckPoint(tgt, x1, y1, conn.tipo) : portedPoint(tgt, connIdx, x1, y1, true);
+
+      const reversed = conn.arrowEnd === 'source';
+      const spH = spc.horiz, tpH = tpc.horiz;
+
+      let fwd;
+      if (!spH && !tpH) {
+        const midY = (spc.y + tpc.y) / 2;
+        fwd = `M ${spc.x} ${spc.y} L ${spc.x} ${midY} L ${tpc.x} ${midY} L ${tpc.x} ${tpc.y}`;
+      } else if (spH && tpH) {
+        const midX = (spc.x + tpc.x) / 2;
+        fwd = `M ${spc.x} ${spc.y} L ${midX} ${spc.y} L ${midX} ${tpc.y} L ${tpc.x} ${tpc.y}`;
+      } else if (!spH && tpH) {
+        fwd = `M ${spc.x} ${spc.y} L ${spc.x} ${tpc.y} L ${tpc.x} ${tpc.y}`;
+      } else {
+        fwd = `M ${spc.x} ${spc.y} L ${tpc.x} ${spc.y} L ${tpc.x} ${tpc.y}`;
+      }
+
+      if (reversed) {
+        if (!spH && !tpH) {
+          const midY = (spc.y + tpc.y) / 2;
+          dPath = `M ${tpc.x} ${tpc.y} L ${tpc.x} ${midY} L ${spc.x} ${midY} L ${spc.x} ${spc.y}`;
+        } else if (spH && tpH) {
+          const midX = (spc.x + tpc.x) / 2;
+          dPath = `M ${tpc.x} ${tpc.y} L ${midX} ${tpc.y} L ${midX} ${spc.y} L ${spc.x} ${spc.y}`;
+        } else if (!spH && tpH) {
+          dPath = `M ${tpc.x} ${tpc.y} L ${spc.x} ${tpc.y} L ${spc.x} ${spc.y}`;
+        } else {
+          dPath = `M ${tpc.x} ${tpc.y} L ${tpc.x} ${spc.y} L ${spc.x} ${spc.y}`;
+        }
+      } else {
+        dPath = fwd;
+      }
+      dCenter = fwd;
+    } else {
+      const midY = (sp.y + tp.y) / 2 + parallelOff;
+      dCenter = `M ${sp.x} ${sp.y} L ${sp.x} ${midY} L ${tp.x} ${midY} L ${tp.x} ${tp.y}`;
+      dPath   = dCenter;
+    }
 
     // Selection glow behind everything
     if (isSelected) {
@@ -969,8 +924,15 @@ function renderConnections() {
     }
 
     // Visible cable paths
-    if (ct.doble) {
+    if (conn.tipo === 'cable_xlr') {
+      const p = makePath(dPath, color, grosor);
+      p.style.cursor = 'pointer';
+      if (conn.arrowEnd) p.setAttribute('marker-end', 'url(#xlr-arrow)');
+      p.addEventListener('click', (e) => { e.stopPropagation(); selectConnection(conn.id); });
+      g.appendChild(p);
+    } else if (ct.doble) {
       const off = 1.5;
+      const midY = (sp.y + tp.y) / 2 + parallelOff;
       const d1 = `M ${sp.x-off} ${sp.y} L ${sp.x-off} ${midY-off} L ${tp.x-off} ${midY-off} L ${tp.x-off} ${tp.y}`;
       const d2 = `M ${sp.x+off} ${sp.y} L ${sp.x+off} ${midY+off} L ${tp.x+off} ${midY+off} L ${tp.x+off} ${tp.y}`;
       [d1, d2].forEach(d => {
@@ -997,11 +959,13 @@ function renderConnections() {
     ghost.setAttribute('data-id', conn.id);
     g.appendChild(ghost);
 
-    // Label: tipo · etiqueta — centered on horizontal segment
+    // Labels and canal lists: only for non-XLR cables (mangueras, red, triax)
+    if (conn.tipo !== 'cable_xlr') {
+    const midYLabel = (sp.y + tp.y) / 2 + parallelOff;
     const etiqueta = conn.etiqueta || '';
     const labelTxt = etiqueta ? `${ct.nombre} · ${etiqueta}` : ct.nombre;
     const lblX = (sp.x + tp.x) / 2;
-    const lblY = midY;
+    const lblY = midYLabel;
     const labelW = Math.max(70, labelTxt.length * 5.5 + 10);
 
     const lblBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -1020,7 +984,8 @@ function renderConnections() {
     lbl.textContent = labelTxt;
     g.appendChild(lbl);
 
-    // Canal list — draggable, position persisted in conn.canalesPos
+    // Canal list — en capa conn-labels (por encima de los elementos)
+    const clg = document.getElementById('conn-labels');
     if (conn.canales && conn.canales.length > 0) {
       const escala = conn.escalaLista || 1.0;
       const lineH = 10 * escala, pad = 4 * escala;
@@ -1042,7 +1007,7 @@ function renderConnections() {
       hilo.setAttribute('stroke', '#000'); hilo.setAttribute('stroke-width', '0.5');
       hilo.setAttribute('opacity', '0.4');
       hilo.setAttribute('pointer-events', 'none');
-      g.appendChild(hilo);
+      clg.appendChild(hilo);
 
       const listGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
       listGroup.setAttribute('class', 'canales-list');
@@ -1075,26 +1040,22 @@ function renderConnections() {
       });
 
       listGroup.addEventListener('mousedown', (e) => startCanalesDrag(e, conn.id));
-      g.appendChild(listGroup);
+      clg.appendChild(listGroup);
     }
+    } // end if (conn.tipo !== 'cable_xlr')
   });
 }
 
 
 function truckPoint(el, tx, ty, cableTipo) {
-  const isAnalog = cableTipo === 'manguera_8' || cableTipo === 'manguera_16';
-  const isDigital = cableTipo === 'cable_red';
-  const isTriax = cableTipo === 'cable_triax';
-  
-  if (isTriax) {
-    // Techo de la UM (ajustado al centro superior del remolque)
-    return { x: el.x + el.w * 0.6, y: el.y + 20 };
-  } else if (isAnalog) {
-    // Patch izquierdo (Analógico) - centro del panel de conectores
-    return { x: el.x + el.w * 0.28, y: el.y + el.h * 0.55 };
-  } else if (isDigital) {
-    // Patch derecho (Digital/Hydra) - centro del panel de conectores
-    return { x: el.x + el.w * 0.72, y: el.y + el.h * 0.55 };
+  const ct = CABLE_TYPES[cableTipo] || {};
+  const cat = ct.categoria || '';
+  if (cableTipo === 'cable_triax') {
+    return { x: el.x + el.w * 0.6, y: el.y + 20 };         // Techo remolque
+  } else if (cat === 'analogico') {
+    return { x: el.x + el.w * 0.28, y: el.y + el.h * 0.55 }; // Patch izquierdo analógico
+  } else if (cat === 'digital') {
+    return { x: el.x + el.w * 0.72, y: el.y + el.h * 0.55 }; // Patch derecho digital
   }
   return edgePoint(el, tx, ty);
 }
@@ -1103,14 +1064,31 @@ function edgePoint(el, tx, ty) {
   const cx = el.x + el.w/2, cy = el.y + el.h/2;
   const dx = tx - cx, dy = ty - cy;
   if (Math.abs(dx) * el.h > Math.abs(dy) * el.w) {
-    // Sale por el lado izq/der
     const sign = dx > 0 ? 1 : -1;
     return { x: cx + sign * el.w/2, y: cy + dy * (el.w/2) / Math.abs(dx) };
   } else {
-    // Sale por arriba/abajo
     const sign = dy > 0 ? 1 : -1;
     return { x: cx + dx * (el.h/2) / Math.abs(dy), y: cy + sign * el.h/2 };
   }
+}
+
+// Determines which face ('top'|'bottom'|'left'|'right') a cable exits from.
+function getFaceDir(el, tx, ty) {
+  const cx = el.x + el.w/2, cy = el.y + el.h/2;
+  const dx = tx - cx, dy = ty - cy;
+  if (Math.abs(dx) * el.h > Math.abs(dy) * el.w) return dx > 0 ? 'right' : 'left';
+  return dy > 0 ? 'bottom' : 'top';
+}
+
+// Returns the center of the nearest cardinal face, plus which axis the cable exits on.
+// horiz:true → cable exits left/right; horiz:false → exits top/bottom.
+function cardinalPoint(el, tx, ty) {
+  const face = getFaceDir(el, tx, ty);
+  const cx = el.x + el.w/2, cy = el.y + el.h/2;
+  if (face === 'left')   return { x: el.x,        y: cy,          horiz: true  };
+  if (face === 'right')  return { x: el.x + el.w, y: cy,          horiz: true  };
+  if (face === 'top')    return { x: cx,           y: el.y,        horiz: false };
+  return                        { x: cx,           y: el.y + el.h, horiz: false };
 }
 
 let dragData = null;
@@ -1188,31 +1166,109 @@ function endCanalesDrag() {
   document.removeEventListener('mouseup', endCanalesDrag);
 }
 
+function smartConnect(srcId, tgtId) {
+  pushHistory();
+  const srcEl = state.elements.find(e => e.id === srcId);
+  const tgtEl = state.elements.find(e => e.id === tgtId);
+  if (!srcEl || !tgtEl) return;
+
+  const sr = ELEMENT_RULES[srcEl.tipo] || {};
+  const tr = ELEMENT_RULES[tgtEl.tipo] || {};
+
+  // Cámara ENG u otros no_connect: bloquear cualquier conexión
+  if (sr.no_connect || tr.no_connect) {
+    state.pendingConnection = null;
+    setStatus('Este elemento no admite conexión por cable');
+    renderAll();
+    return;
+  }
+
+  // Microcasco → genera 2 cables XLR (Micro + IEM)
+  const isMicrocasco = srcEl.tipo === 'microcasco' || tgtEl.tipo === 'microcasco';
+  if (isMicrocasco) {
+    const mcEl  = srcEl.tipo === 'microcasco' ? srcEl : tgtEl;
+    const other = srcEl.tipo === 'microcasco' ? tgtEl : srcEl;
+    const existingMc = state.connections.filter(c =>
+      (c.de === mcEl.id && c.a === other.id) || (c.de === other.id && c.a === mcEl.id)
+    );
+    if (existingMc.length >= 2) {
+      state.pendingConnection = null;
+      setStatus('Microcasco: ya tiene 2 cables conectados a ese destino');
+      renderAll();
+      return;
+    }
+    const labels = (ELEMENT_RULES.microcasco.multi || ['Micro','IEM']);
+    labels.forEach((lbl, idx) => {
+      // Micro (idx=0): signal from mc to other; IEM (idx=1): signal from other to mc
+      const arrowEnd = idx === 0 ? 'target' : 'source';
+      state.connections.push({
+        id: state.nextId++, de: mcEl.id, a: other.id,
+        tipo: 'cable_xlr', arrowEnd,
+        etiqueta: `${mcEl.label} — ${lbl}`,
+        canales: [{num: 1, senal: lbl.toUpperCase()}]
+      });
+    });
+    state.pendingConnection = null;
+    setTool('select');
+    setStatus(`Microcasco: 2 cables XLR creados (Micro + IEM)`);
+    renderAll();
+    return;
+  }
+
+  // IEM Dual → 1er intento = IEM-A, 2º intento = IEM-B
+  const isIEM = srcEl.tipo === 'iem_dual' || tgtEl.tipo === 'iem_dual';
+  if (isIEM) {
+    const iemEl = srcEl.tipo === 'iem_dual' ? srcEl : tgtEl;
+    const other = srcEl.tipo === 'iem_dual' ? tgtEl : srcEl;
+    const existing = state.connections.filter(c =>
+      (c.de === iemEl.id && c.a === other.id) || (c.de === other.id && c.a === iemEl.id)
+    );
+    if (existing.length >= 2) {
+      state.pendingConnection = null;
+      setStatus('IEM Dual: ya hay 2 cables conectados a ese destino');
+      renderAll();
+      return;
+    }
+    const dual = ELEMENT_RULES.iem_dual.dual || ['IEM-A','IEM-B'];
+    const lbl = dual[existing.length];
+    state.connections.push({
+      id: state.nextId++, de: iemEl.id, a: other.id,
+      tipo: 'cable_xlr', arrowEnd: 'source',
+      etiqueta: `${iemEl.label} — ${lbl}`,
+      canales: [{num: 1, senal: lbl}]
+    });
+    state.pendingConnection = null;
+    setTool('select');
+    setStatus(`IEM Dual: cable ${lbl} creado`);
+    renderAll();
+    return;
+  }
+
+  // Conexión normal con tipo inferido
+  const tipo = inferCableType(srcEl.tipo, tgtEl.tipo);
+  const arrowEnd = inferArrowEnd(srcEl.tipo, tgtEl.tipo);
+  state.connections.push({
+    id: state.nextId++, de: srcId, a: tgtId,
+    tipo, arrowEnd,
+    etiqueta: '',
+    canales: []
+  });
+  state.pendingConnection = null;
+  setTool('select');
+  setStatus(`Conexión: ${srcEl.label} → ${tgtEl.label} [${CABLE_TYPES[tipo].nombre}]`);
+  renderAll();
+}
+
 function selectElement(id) {
   if (state.tool === 'connect') {
     if (state.pendingConnection === null) {
       state.pendingConnection = id;
       const srcEl = state.elements.find(e => e.id === id);
       const srcName = srcEl ? srcEl.label : id;
-      setStatus(`Origen seleccionado: ${srcName} · clic en el DESTINO o Escape para cancelar`);
+      setStatus(`Origen: ${srcName} · clic en el DESTINO o Escape para cancelar`);
       renderAll();
     } else if (state.pendingConnection !== id) {
-      pushHistory();
-      const srcEl = state.elements.find(e => e.id === state.pendingConnection);
-      const tgtEl = state.elements.find(e => e.id === id);
-      const srcName = srcEl ? srcEl.label : state.pendingConnection;
-      const tgtName = tgtEl ? tgtEl.label : id;
-      const connId = state.nextId++;
-      state.connections.push({
-        id: connId,
-        de: state.pendingConnection,
-        a: id,
-        tipo: 'manguera_8',
-        etiqueta: '',
-        canales: []
-      });
-      setTool('select');
-      setStatus(`Conexión creada: ${srcName} → ${tgtName}`);
+      smartConnect(state.pendingConnection, id);
     }
     return;
   }
@@ -1275,9 +1331,11 @@ function showProperties() {
         <label>Tipo de cable</label>
         <select onchange="updateConnTipo(${conn.id}, this.value)"
                 style="width:100%;padding:5px;border:1px solid #ccc;border-radius:4px;font-size:12px;">
-          <option value="manguera_8"  ${conn.tipo==='manguera_8' ?'selected':''}>Manguera de 8 (rojo)</option>
-          <option value="manguera_16" ${conn.tipo==='manguera_16'?'selected':''}>Manguera de 16 (azul)</option>
-          <option value="cable_red"   ${conn.tipo==='cable_red'  ?'selected':''}>Cable de red (verde)</option>
+          <option value="manguera_8"  ${conn.tipo==='manguera_8'  ?'selected':''}>Manguera Analógica 8 (rojo doble)</option>
+          <option value="manguera_16" ${conn.tipo==='manguera_16' ?'selected':''}>Manguera Analógica 16 (azul doble)</option>
+          <option value="cable_xlr"   ${conn.tipo==='cable_xlr'   ?'selected':''}>Cable XLR Audio (negro)</option>
+          <option value="cable_red"   ${conn.tipo==='cable_red'   ?'selected':''}>Cable Red / Fibra (verde)</option>
+          <option value="cable_triax" ${conn.tipo==='cable_triax' ?'selected':''}>Triax de Cámara (gris)</option>
         </select>
       </div>
       <div class="field">
@@ -1477,49 +1535,6 @@ function selectNote(id) {
   `;
 }
 
-function selectZone(id) {
-  state.selectedId = id;
-  state.selectedType = 'zone';
-  renderAll();
-  const zone = state.zones.find(z => z.id === id);
-  if (!zone) return;
-  document.getElementById('properties-panel').innerHTML = `
-    <h3>Recuadro</h3>
-    <div class="field">
-      <label>Etiqueta / Título</label>
-      <input type="text" value="${zone.label.replace(/"/g, '&quot;')}" onfocus="pushHistory()" oninput="updateZoneLabel(${zone.id}, this.value)">
-    </div>
-    <div class="field">
-      <label>Posición X / Y</label>
-      <div style="display:flex; gap:4px;">
-        <input type="number" value="${zone.x}" oninput="updateZoneProp(${zone.id}, 'x', this.value)" style="width:50%;">
-        <input type="number" value="${zone.y}" oninput="updateZoneProp(${zone.id}, 'y', this.value)" style="width:50%;">
-      </div>
-    </div>
-    <div class="field">
-      <label>Tamaño W / H</label>
-      <div style="display:flex; gap:4px;">
-        <input type="number" value="${zone.w}" oninput="updateZoneProp(${zone.id}, 'w', this.value)" style="width:50%;">
-        <input type="number" value="${zone.h}" oninput="updateZoneProp(${zone.id}, 'h', this.value)" style="width:50%;">
-      </div>
-    </div>
-    <button class="btn danger" onclick="deleteZone(${zone.id})" style="width:100%; margin-top:8px;">Borrar recuadro</button>
-  `;
-}
-
-function updateZoneLabel(id, v) { const z = state.zones.find(x=>x.id===id); if(z){z.label=v; renderZones();} }
-function updateZoneProp(id, prop, v) { const z = state.zones.find(x=>x.id===id); if(z){z[prop]=parseInt(v)||0; renderZones();} }
-
-function deleteZone(id) {
-  pushHistory();
-  state.zones = state.zones.filter(z => z.id !== id);
-  state.selectedId = null;
-  state.selectedType = null;
-  document.getElementById('properties-panel').innerHTML = '<p style="font-size:11px;color:#888;padding:8px;background:#f9f9f9;border-radius:4px;">Selecciona un elemento o conexión.</p>';
-  renderAll();
-}
-
-
 function updateNoteText(id, v) { const n = state.notes.find(x=>x.id===id); if(n){n.texto=v; renderNotes();} }
 function updateNotePos(id, axis, v) { const n = state.notes.find(x=>x.id===id); if(n){n[axis]=parseInt(v)||0; renderNotes();} }
 function updateNoteFontSize(id, v) { const n = state.notes.find(x=>x.id===id); if(n){n.fontSize=parseInt(v)||12; renderNotes();} }
@@ -1537,7 +1552,6 @@ function deleteSelected() {
   if (state.selectedType === 'element') deleteElement(state.selectedId);
   else if (state.selectedType === 'connection') deleteConnection(state.selectedId);
   else if (state.selectedType === 'note') deleteNote(state.selectedId);
-  else if (state.selectedType === 'zone') deleteZone(state.selectedId);
 }
 
 function handleCanvasClick(e) {
@@ -1683,60 +1697,13 @@ function handleFileLoad(e) {
 }
 
 async function exportPDF() {
-  setStatus('Preparando PDF multipágina...');
-  
-  // Limpiar selección antes de exportar
-  state.selectedId = null;
-  state.selectedType = null;
-  renderAll();
-  
-  const title = document.getElementById('diagram-title').value || 'Diagrama General';
-  const svgEl = document.getElementById('canvas');
-  const svgMarkup = new XMLSerializer().serializeToString(svgEl);
-  
-  const printContainer = document.createElement('div');
-  printContainer.id = 'print-container';
-  document.body.appendChild(printContainer);
-  
-  // Página 1: Diagrama completo
-  const page1 = document.createElement('div');
-  page1.className = 'print-page';
-  page1.innerHTML = `
-    <h2 style="text-align:center; font-size:14pt; margin:0 0 10px 0; color:black; font-family:sans-serif;">${title}</h2>
-    ${svgMarkup}
-  `;
-  // Ocultar grid y recuadros en la impresión
-  const p1svg = page1.querySelector('svg');
-  if (p1svg) {
-    const p1g = p1svg.querySelector('#grid'); if (p1g) p1g.style.display = 'none';
-    const p1z = p1svg.querySelector('#zones'); if (p1z) p1z.style.display = 'none';
-  }
-  printContainer.appendChild(page1);
-  
-  // Páginas 2..N: Zonas (Recuadros)
-  state.zones.forEach(z => {
-    const page = document.createElement('div');
-    page.className = 'print-page';
-    page.innerHTML = `
-      <h2 style="text-align:center; font-size:14pt; margin:0 0 10px 0; color:black; font-family:sans-serif;">${title} — ${z.label}</h2>
-      ${svgMarkup}
-    `;
-    const svgClone = page.querySelector('svg');
-    if (svgClone) {
-      // Recortar la vista del SVG al recuadro usando viewBox
-      svgClone.setAttribute('viewBox', \`\${z.x} \${z.y} \${z.w} \${z.h}\`);
-      
-      const pGrid = svgClone.querySelector('#grid'); if (pGrid) pGrid.style.display = 'none';
-      const pZones = svgClone.querySelector('#zones'); if (pZones) pZones.style.display = 'none';
-    }
-    printContainer.appendChild(page);
-  });
-  
+  setStatus('Abriendo diálogo de impresión...');
+  document.getElementById('print-title').textContent =
+    document.getElementById('diagram-title').value || 'Diagrama';
   setTimeout(() => {
     window.print();
-    printContainer.remove();
-    setStatus('Exportación a PDF completada');
-  }, 500);
+    setStatus('Listo. En el diálogo: Destino "Guardar como PDF", Tamaño A3, Horizontal');
+  }, 100);
 }
 
 function openDescribeModal() {
@@ -2006,7 +1973,7 @@ function setupTextInput() {
   });
 }
 
-init();
+window.onload = init;
 </script>
 
 <div class="modal-bg" id="text-modal">
